@@ -286,13 +286,38 @@ train[which(train$property_bathrooms == 0), "property_type"]
 
 # What is up with the 0 square feet appartments?
 
-# How many unique hosts are there?
+## How many unique hosts are there?
+num_unique_host_ids <- length(unique(train$host_id))
+print(num_unique_host_ids)
 
-# Can we interpolate host response rates from other properties of that host?
+## Can we interpolate host response rates from other properties of that host? ##
+# Load the required library
+library(dplyr)
 
-# what is the difference with host_nr_listings and host_nr_listings_total?
+# Build a linear regression model to predict response rate from other properties
+model <- lm(host_response_rate ~ host_location + host_response_time + 
+              host_nr_listings + host_verified + host_since, data = df)
+
+# for example make predictions for new data based on the trained model
+new_data <- data.frame(host_location = "Brussels, Brussels, Belgium",
+                       host_response_time = "within a few hours",
+                       host_nr_listings = 1,
+                       host_verified = "email, phone, reviews",
+                       host_since = "2013-11-14")
+predicted_response_rate <- predict(model, new_data)
+
+# Print the predicted response rate
+print(predicted_response_rate)
+
+
+## what is the difference with host_nr_listings and host_nr_listings_total?
+if(train$host_nr_listings == train$host_nr_listings_total)
+{
+  print("Column A and B are identical")
+}
 
 # Does a host really have 591 properties?
+boxplot(train$host_nr_listings)
 
 # What is up with booking_min_nights being 1000 sometimes? 
 
