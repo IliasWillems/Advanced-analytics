@@ -438,5 +438,152 @@ boxplot(train$host_nr_listings)
 # What is up with booking_min_nights being 1000 sometimes? 
 
 
+###
+# reviews
+###
+
+#
+#reviews_num
+#
+
+#There is a lot of positive skewness
+plot(density(train$reviews_num))
+boxplot(train$reviews_num)
+
+# I did the same thing as for the target variable, looking at log and box-cox transformation
+plot(density(log(train$reviews_num)))
+boxplot(log(train$reviews_num))
+
+# Box-cox transformation
+bc_trans <- boxcox(lm(train$reviews_num ~ 1))
+lambda_opt <- bc_trans$x[which.max(bc_trans$y)]
+bc_reviews_num <- (train$reviews_num^lambda_opt - 1)/lambda_opt
+plot(density(bc_reviews_num))
+boxplot(bc_reviews_num)
+
+#We could group them into categories.
+# I changed the variable values inside the train data set. (Maybe make a separate variable?)
+for (i in 1:length(train$reviews_num)){
+  if (train$reviews_num[i] >= 1 & train$reviews_num[i]<=5){train$reviews_num[i] = 1}
+  if (train$reviews_num[i] >= 6 & train$reviews_num[i]<=19){train$reviews_num[i] = 2}
+  if (train$reviews_num[i] > 19){train$reviews_num[i] = 3}
+}
+
+#
+# reviews_first, reviews_last, reviews_per_month
+#
+
+#reviews_first and reviews_last: maybe create new variable reviews_period? The date 
+# of the last review is still valuable. (NEVER use dates directly -> lecture)
+
+#I want to check if the 1290  missing values are the 0 values for reviews_num
+length(train$reviews_num[which(train$reviews_num==0)])
+# yes. There are 1290 instances with no review information.This also gives us information about
+# the airbnb (because there are no reviews) -> not random 
+# keep the separate missing value indicator feature
+
+#reviews_per_month outliers? skewed?
+plot(density(train$reviews_per_month ,na.rm=TRUE))
+boxplot(train$reviews_per_month)
+# positively skewed. We could do a transformation again:
+
+# log transformation
+plot(density(log(train$reviews_per_month),na.rm=TRUE))
+boxplot(log(train$reviews_per_month))
+
+# Box-cox transformation
+bc_trans <- boxcox(lm(train$reviews_per_month ~ 1))
+lambda_opt <- bc_trans$x[which.max(bc_trans$y)]
+bc_reviews_per_month <- (train$reviews_per_month^lambda_opt - 1)/lambda_opt
+plot(density(bc_reviews_per_month),na.rm=TRUE)
+boxplot(bc_reviews_per_month)
+
+#
+# reviews_acc, reviews_cleanliness, reviews_checkin, reviews_communication, reviews_location, reviews_value
+# reviews_rating
+#
+
+# Here we have some additional missing values in the data. -> random missing values
+# We can replace these (but keep NA for the 1290 airbnb's with no reviews)
+for (i in 1:length(train$reviews_acc)){
+  if (is.na(train$reviews_acc[i]) & (is.na(train$reviews_per_month[i]) == FALSE)){train$reviews_acc[i] = mean(train$reviews_acc,na.rm=TRUE)}
+}
+
+# do the same thing for the others
+
+for (i in 1:length(train$reviews_cleanliness)){
+  if (is.na(train$reviews_cleanliness[i]) & (is.na(train$reviews_per_month[i]) == FALSE)){train$reviews_cleanliness[i] = mean(train$reviews_cleanliness,na.rm=TRUE)}
+}
+
+for (i in 1:length(train$reviews_checkin)){
+  if (is.na(train$reviews_checkin[i]) & (is.na(train$reviews_per_month[i]) == FALSE)){train$reviews_checkin[i] = mean(train$reviews_checkin,na.rm=TRUE)}
+}
+
+for (i in 1:length(train$reviews_communication)){
+  if (is.na(train$reviews_communication[i]) & (is.na(train$reviews_per_month[i]) == FALSE)){train$reviews_communication[i] = mean(train$reviews_communication,na.rm=TRUE)}
+}
+
+for (i in 1:length(train$reviews_location)){
+  if (is.na(train$reviews_location[i]) & (is.na(train$reviews_per_month[i]) == FALSE)){train$reviews_location[i] = mean(train$reviews_location,na.rm=TRUE)}
+}
+
+for (i in 1:length(train$reviews_value)){
+  if (is.na(train$reviews_value[i]) & (is.na(train$reviews_per_month[i]) == FALSE)){train$reviews_value[i] = mean(train$reviews_value,na.rm=TRUE)}
+}
+
+for (i in 1:length(train$reviews_rating)){
+  if (is.na(train$reviews_rating[i]) & (is.na(train$reviews_per_month[i]) == FALSE)){train$reviews_rating[i] = mean(train$reviews_rating,na.rm=TRUE)}
+}
+
+#
+#extra
+#
+
+# we want to make different categories based on the strings inside this variable ...
+#profile_pic
+vector = numeric(6495)
+for (i in 1:6495){
+  if (grepl("Host Has Profile Pic",  train$extra[i], fixed = TRUE)){
+    vector[i] = 1
+  }
+}
+train$profile_pic <- factor(vector)
+
+#exact_location
+vector = numeric(6495)
+for (i in 1:6495){
+  if (grepl("Is Location Exact",  train$extra[i], fixed = TRUE)){
+    vector[i] = 1
+  }
+}
+train$exact_location <- factor(vector)
+
+#instant_bookable
+vector = numeric(6495)
+for (i in 1:6495){
+  if (grepl("Instant Bookable",  train$extra[i], fixed = TRUE)){
+    vector[i] = 1
+  }
+}
+train$instant_bookable <- factor(vector)
+
+#superhost
+vector = numeric(6495)
+for (i in 1:6495){
+  if (grepl("Host Is Superhost",  train$extra[i], fixed = TRUE)){
+    vector[i] = 1
+  }
+}
+train$superhost <- factor(vector)
+
+#identified_host
+vector = numeric(6495)
+for (i in 1:6495){
+  if (grepl("Host Identity Verified",  train$extra[i], fixed = TRUE)){
+    vector[i] = 1
+  }
+}
+train$identified_host <- factor(vector)
+
 
 
