@@ -438,5 +438,73 @@ boxplot(train$host_nr_listings)
 # What is up with booking_min_nights being 1000 sometimes? 
 
 
+###booking_price_covers###
+attach(train)
+summary(as.factor(train$booking_price_covers))
+#up to 16 people can be covered by the booking price which seems realistic
+
+
+###booking_min_nights and booking_max_nights###
+
+summary(as.factor(train$booking_min_nights))
+#????????Property_id 5620 has min nights of 1000 nights, too much? also 2x 365 and 1x 360
+summary(as.factor(train$booking_max_nights))
+
+subset(train, booking_min_nights > booking_max_nights, select=c("property_id", "booking_min_nights", "booking_max_nights"))
+# property_id (3792) has MIN nights(7) > MAX nights(1)... These should be switched:
+train$booking_min_nights[train$property_id == 3792] <- 1
+train$booking_max_nights[train$property_id == 3792] <- 7
+
+
+###booking_availability_30  + 60 + 90 +365
+# Check unique values and their frequencies for booking_availability_30
+table(train$booking_availability_30)
+library(ggplot2)
+ggplot(train, aes(x = booking_availability_30)) + 
+  geom_histogram(binwidth = 0.05, fill = "blue", color = "black") + 
+  labs(title = "Booking Availability in 365 days", x = "Booking Availability", y = "Count")
+
+# Check unique values and their frequencies for booking_availability_60
+table(train$booking_availability_60)
+library(ggplot2)
+ggplot(train, aes(x = booking_availability_60)) + 
+  geom_histogram(binwidth = 0.05, fill = "blue", color = "black") + 
+  labs(title = "Booking Availability in 365 days", x = "Booking Availability", y = "Count")
+
+# Check unique values and their frequencies for booking_availability_90
+table(train$booking_availability_90)
+library(ggplot2)
+ggplot(train, aes(x = booking_availability_90)) + 
+  geom_histogram(binwidth = 0.05, fill = "blue", color = "black") + 
+  labs(title = "Booking Availability in 365 days", x = "Booking Availability", y = "Count")
+
+# Check unique values and their frequencies for booking_availability_365
+table(train$booking_availability_365)
+library(ggplot2)
+ggplot(train, aes(x = booking_availability_365)) + 
+  geom_histogram(binwidth = 0.05, fill = "blue", color = "black") + 
+  labs(title = "Booking Availability in 365 days", x = "Booking Availability", y = "Count")
+
+
+#any unusual values
+#??????convert to 0 and 1? :
+
+### Make sure all values are between 0 and 1
+# train$booking_availability_30[train$booking_availability_30 < 0] <- 0
+# train$booking_availability_30[train$booking_availability_30 > 1] <- 1
+# train$booking_availability_60[train$booking_availability_60 < 0] <- 0
+# train$booking_availability_60[train$booking_availability_60 > 1] <- 1
+# train$booking_availability_90[train$booking_availability_90 < 0] <- 0
+# train$booking_availability_90[train$booking_availability_90 > 1] <- 1
+# train$booking_availability_365[train$booking_availability_365 < 0] <- 0
+# train$booking_availability_365[train$booking_availability_365 > 1] <- 1
+
+
+###booking_cancel_policy
+table(train$booking_cancel_policy)
+#??????????  only 1 time 'super_strict' , convert super_strict to strict? 
+#train$booking_cancel_policy[train$booking_cancel_policy == "super_strict_30"] <- "strict"
+
+
 
 
