@@ -3,11 +3,14 @@
 rm(list = ls())
 
 # Load in data
-train <- read.csv("~/,School/Master/2de master/Advanced analytics/Assignment 1/data/train.csv", header=TRUE)
+train <- read.csv("data/train.csv", header=TRUE)
 
 # Load necessary packages
 library(MASS)
 library(tree)
+library(rpart)
+library(rpart.plot)
+library(dplyr)
 
 ################################################################################
 #                        Data inspection + cleaning                            #
@@ -115,38 +118,56 @@ zipcode_data$zipcode[which(zipcode_data$zipcode %in% uncommon_zipcodes)] <- "oth
 zipcode_data$zipcode <- as.factor(zipcode_data$zipcode)
 zipcode_data$price_class <- as.factor(zipcode_data$price_class)
 
-# takes a few minutes to run...
-zipcode_tree <- tree(price_class ~ zipcode, data = zipcode_data, split = "gini")
-plot(zipcode_tree)
-text(zipcode_tree)
+# Fit classification tree on price_class or regression tree on price?
+do_reg_tree <- TRUE
 
-# Determine accuracy of the tree. The tree is not very accurate, but hopefully 
-# accurate enough. If it makes mistakes, the mistake will at least be not too
-# bad.
-good <- 0
-bad1 <- 0
-bad2 <- 0
-pred <- predict(zipcode_tree, type = "class")
-for (i in 1:length(pred)) {
-  if (pred[i] == zipcode_data[i, "price_class"]) {
-    good <- good + 1
-  } else if ((pred[i] == as.factor("low") && 
-             zipcode_data[i, "price_class"] == as.factor("high")) | (
-               pred[i] == as.factor("low") && 
-                 zipcode_data[i, "price_class"] == as.factor("high")
-               )
-             ) {
-    bad2 <- bad2 + 1
-  } else {
-    bad1 <- bad1 + 1
+if (!do_reg_tree) {
+  # takes a few minutes to run...
+  zipcode_tree <- tree(price_class ~ zipcode, data = zipcode_data, split = "gini")
+  plot(zipcode_tree)
+  text(zipcode_tree)
+  
+  # Determine accuracy of the tree. The tree is not very accurate, but hopefully 
+  # accurate enough. If it makes mistakes, the mistake will at least be not too
+  # bad.
+  good <- 0
+  bad1 <- 0
+  bad2 <- 0
+  pred <- predict(zipcode_tree, type = "class")
+  for (i in 1:length(pred)) {
+    if (pred[i] == zipcode_data[i, "price_class"]) {
+      good <- good + 1
+    } else if ((pred[i] == as.factor("low") && 
+                zipcode_data[i, "price_class"] == as.factor("high")) | (
+                  pred[i] == as.factor("low") && 
+                  zipcode_data[i, "price_class"] == as.factor("high")
+                )
+    ) {
+      bad2 <- bad2 + 1
+    } else {
+      bad1 <- bad1 + 1
+    }
   }
+  data.frame("good" = good/length(pred), "somewhat bad" = bad1/length(pred),
+             "bad" = bad2/length(pred))
+  train$zipcode_class <- ifelse(pred == "high", "zipclass1",
+                                ifelse(pred == "medium", "zipclass2", "zipclass3"))
+  train$zipcode_class <- as.factor(train$zipcode_class)
+  
+} else {
+  
+  tree_zipcode <- rpart(price ~ zipcode, data = zipcode_data, control=rpart.control(cp=.0003))
+  printcp(tree_zipcode)
+  
+  #plot the pruned tree
+  prp(tree_zipcode,
+      faclen=0, #use full names for factor labels
+      extra=1, #display number of obs. for each terminal node
+      roundint=F, #don't round to integers in output
+      digits=5) #display 5 decimal places in output
+  
+  train$zipcode_class <- predict(tree_zipcode)
 }
-data.frame("good" = good/length(pred), "somewhat bad" = bad1/length(pred),
-           "bad" = bad2/length(pred))
-train$zipcode_class <- ifelse(pred == "high", "zipclass1",
-                              ifelse(pred == "medium", "zipclass2", "zipclass3"))
-train$zipcode_class <- as.factor(train$zipcode_class)
-
 
 #
 # property_lat and property_lon
@@ -196,41 +217,62 @@ type_data$price_class <- ifelse(type_data$price > quantile(type_data$price, 0.75
                                    ifelse(type_data$price > quantile(type_data$price, 0.25), "medium", "low"))
 type_data$price_class <- as.factor(type_data$price_class)
 
-# We fully grow the tree, as that makes sense in this case.
-type_tree <- tree(price_class ~ type, data = type_data, split = "gini",
-                  control = tree.control(nrow(train), mincut = 1, minsize = 2))
-plot(type_tree)
-text(type_tree)
+# Fit classification tree on price_class or regression tree on price?
+do_reg_tree <- TRUE
 
-# Determine accuracy of the tree. The tree is not very accurate, but hopefully 
-# accurate enough. If it makes mistakes, the mistake will at least be not too
-# bad.
-good <- 0
-bad1 <- 0
-bad2 <- 0
-pred <- predict(type_tree, type = "class")
-for (i in 1:length(pred)) {
-  if (pred[i] == type_data[i, "price_class"]) {
-    good <- good + 1
-  } else if ((pred[i] == as.factor("low") && 
-              type_data[i, "price_class"] == as.factor("high")) | (
-                pred[i] == as.factor("low") && 
-                type_data[i, "price_class"] == as.factor("high")
-              )
-  ) {
-    bad2 <- bad2 + 1
-  } else {
-    bad1 <- bad1 + 1
+if (!do_reg_tree) {
+  
+  # We fully grow the tree, as that makes sense in this case.
+  type_tree <- tree(price_class ~ type, data = type_data, split = "gini",
+                    control = tree.control(nrow(train), mincut = 1, minsize = 2))
+  plot(type_tree)
+  text(type_tree)
+  
+  # Determine accuracy of the tree. The tree is not very accurate, but hopefully 
+  # accurate enough. If it makes mistakes, the mistake will at least be not too
+  # bad.
+  good <- 0
+  bad1 <- 0
+  bad2 <- 0
+  pred <- predict(type_tree, type = "class")
+  for (i in 1:length(pred)) {
+    if (pred[i] == type_data[i, "price_class"]) {
+      good <- good + 1
+    } else if ((pred[i] == as.factor("low") && 
+                type_data[i, "price_class"] == as.factor("high")) | (
+                  pred[i] == as.factor("low") && 
+                  type_data[i, "price_class"] == as.factor("high")
+                )
+    ) {
+      bad2 <- bad2 + 1
+    } else {
+      bad1 <- bad1 + 1
+    }
   }
+  data.frame("good" = good/length(pred), "somewhat bad" = bad1/length(pred),
+             "bad" = bad2/length(pred))
+  train$type_class <- ifelse(pred == "high", "typeclass1",
+                             ifelse(pred == "medium", "typeclass2", "typeclass3"))
+  train$type_class <- as.factor(train$type_class)
+  
+  unique(train[which(train$type_class == "typeclass1"), "property_type"]) # all expensive types
+  unique(train[which(train$type_class == "typeclass3"), "property_type"]) # all cheap types
+  
+} else {
+  
+  tree_prop_type <- rpart(price ~ type, data = type_data, control=rpart.control(cp=.0001))
+  printcp(tree_prop_type)
+  
+  #plot the pruned tree
+  prp(tree_prop_type,
+      faclen=0, #use full names for factor labels
+      extra=1, #display number of obs. for each terminal node
+      roundint=F, #don't round to integers in output
+      digits=5) #display 5 decimal places in output
+  
+  train$type_class <- predict(tree_prop_type)
 }
-data.frame("good" = good/length(pred), "somewhat bad" = bad1/length(pred),
-           "bad" = bad2/length(pred))
-train$type_class <- ifelse(pred == "high", "typeclass1",
-                              ifelse(pred == "medium", "typeclass2", "typeclass3"))
-train$type_class <- as.factor(train$type_class)
 
-unique(train[which(train$type_class == "typeclass1"), "property_type"]) # all expensive types
-unique(train[which(train$type_class == "typeclass3"), "property_type"]) # all cheap types
 
 
 #
@@ -291,12 +333,60 @@ num_unique_host_ids <- length(unique(train$host_id))
 print(num_unique_host_ids)
 
 ## Can we interpolate host response rates from other properties of that host? ##
-# Load the required library
-library(dplyr)
+
+# First some data exploration
+head(train[,c("host_response_rate", "host_location", "host_response_time",
+           "host_nr_listings", "host_verified", "host_since")])
+
+# There are a lot of different levels. Maybe boil it down to just country of
+# origin.
+unique(train$host_location)
+
+get_host_country <- function(x) {
+  if (x == "") {
+    "Other"
+  } else {
+    tail(trimws(unlist(strsplit(x, ","))), n=1)
+  }
+}
+
+host_location_country <- lapply(train$host_location, get_host_country)
+host_location_country <- unlist(lapply(train$host_location, get_host_country))
+host_location_country[which(host_location_country %in% c("Belgie", "belgium", "belgique", "Belgique", "belgie", "Belgium"))] <- "BE"
+host_location_country[which(host_location_country %in% c("France"))] <- "FR"
+host_location_country[which(host_location_country %in% c("Netherlands", "The Netherlands", "Nederland"))] <- "NL"
+host_location_country[which(!(host_location_country %in% c("BE", "NL", "FR")))] <- "other"
+train$host_location_country <- host_location_country
+
+# Amount of levels (4) is okay. However, if host_response_time is missing, then
+# host_response_rate is also missing, so we cannot use this in the predictions.
+table(train$host_response_time)
+table(train[which(!is.na(train$host_response_rate)), "host_response_time"])
+
+# Again a lot of different levels. Maybe just summarize this by counting the
+# amount of verifications.
+unique(train$host_verified)
+
+count_verifications <- function(x) {
+  length(unlist(strsplit(x, ",")))
+}
+train$host_verified_amount <- unlist(lapply(train$host_verified, count_verifications))
+
+# Again a lot of levels. Let's transform this variable to show the amount of time
+# (in years) that the host has been a host
+unique(train$host_since)
+
+count_years_host <- function(x) {
+  this_year <- as.numeric(substr(Sys.Date(), 1, 4))
+  host_since_year <- as.numeric(substr(x, 1, 4))
+  max(0, this_year - host_since_year)
+}
+
+train$years_as_host <- unlist(lapply(train$host_since, count_years_host))
 
 # Build a linear regression model to predict response rate from other properties
 model <- lm(host_response_rate ~ host_location + host_response_time + 
-              host_nr_listings + host_verified + host_since, data = df)
+              host_nr_listings + host_verified + host_since, data = train)
 
 # for example make predictions for new data based on the trained model
 new_data <- data.frame(host_location = "Brussels, Brussels, Belgium",
@@ -309,15 +399,41 @@ predicted_response_rate <- predict(model, new_data)
 # Print the predicted response rate
 print(predicted_response_rate)
 
+# Do the same but with new variables
+model <- lm(host_response_rate ~ host_location_country + 
+              host_nr_listings + host_verified_amount + years_as_host, data = train)
+
+# for example make predictions for new data based on the trained model
+new_data <- data.frame(host_location_country = "BE",
+                       host_nr_listings = 1,
+                       host_verified_amount = 3,
+                       years_as_host = 6)
+predicted_response_rate <- predict(model, new_data)
+
+# Print the predicted response rate
+print(predicted_response_rate)
+
+# use this model to impute missing values for host_response_rate
+predictions <- predict(model, train[which(is.na(train$host_response_rate)),
+                                    c("host_location_country", "host_response_time",
+                                      "host_nr_listings", "host_verified_amount",
+                                      "years_as_host")])
+predictions <- pmin(predictions, 100)
+
+# Impute the missing values with this model. Note that we do not have to store
+# the information about which values were initially missing since this is
+# represented by the empty strings in host_response_time.
+train[which(is.na(train$host_response_rate)), "host_response_rate"] <- predictions
+
 
 ## what is the difference with host_nr_listings and host_nr_listings_total?
-if(train$host_nr_listings == train$host_nr_listings_total)
-{
+if(all(train$host_nr_listings == train$host_nr_listings_total, na.rm = TRUE)) {
   print("Column A and B are identical")
 }
 
 # Does a host really have 591 properties?
 boxplot(train$host_nr_listings)
+  # Extremely skewed variable...
 
 # What is up with booking_min_nights being 1000 sometimes? 
 
