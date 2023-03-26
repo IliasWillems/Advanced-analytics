@@ -25,6 +25,10 @@ library(ggplot2)
 
 summary(train)
 
+# In the following, we will create some features of our own. It might be useful
+# to have a vector that stores these features names.
+features <- c()
+
 
 #
 # target
@@ -45,6 +49,8 @@ bc_target <- (train$target^lambda_opt - 1)/lambda_opt
 plot(density(bc_target))
 boxplot(bc_target)
 
+train$bc_target <- bc_target
+features <- c(features, "bc_target")
 
 #
 # Property_id
@@ -90,8 +96,8 @@ train$property_zip_missing <- as.numeric(train$property_zipcode == "")
     lat <- train[idx, "property_lat"]
     lon <- train[idx, "property_lon"]
     
-    # We will look at the K = 10 nearest neighbours
-    K <- 10
+    # We will look at the K = 5 nearest neighbours
+    K <- 5
     
     # Find K nearest neighbours (euclidean distance) in terms of coordinates
     distances <- sqrt((train$property_lat - lat)^2 + (train$property_lon - lon)^2)
@@ -170,6 +176,8 @@ if (!do_reg_tree) {
   train$zipcode_class <- predict(tree_zipcode)
 }
 
+features <- c(features, "zipcode_class")
+
 #
 # property_lat and property_lon
 #
@@ -197,6 +205,8 @@ for (i in 1:nrow(train)) {
   
   train$dist_nearest_city_center[i] <- min(dists)
 }
+
+features <- c(features, "dist_nearest_city_center")
 
 
 #
@@ -274,7 +284,7 @@ if (!do_reg_tree) {
   train$type_class <- predict(tree_prop_type)
 }
 
-
+features <- c(features, "type_class")
 
 #
 # Property_max_guests
@@ -325,10 +335,6 @@ table(train$property_bathrooms)
 plot(train$property_bathrooms, bc_target)
 train[which(train$property_bathrooms == 0), "property_type"]
 
-# Is the 0 bedroom property an outlier?
-
-# What is up with the 0 square feet appartments?
-
 ## How many unique hosts are there?
 num_unique_host_ids <- length(unique(train$host_id))
 print(num_unique_host_ids)
@@ -359,6 +365,8 @@ host_location_country[which(host_location_country %in% c("Netherlands", "The Net
 host_location_country[which(!(host_location_country %in% c("BE", "NL", "FR")))] <- "other"
 train$host_location_country <- host_location_country
 
+features <- c(features, "host_location_country")
+
 # Amount of levels (4) is okay. However, if host_response_time is missing, then
 # host_response_rate is also missing, so we cannot use this in the predictions.
 table(train$host_response_time)
@@ -373,6 +381,8 @@ count_verifications <- function(x) {
 }
 train$host_verified_amount <- unlist(lapply(train$host_verified, count_verifications))
 
+features <- c(features, "host_verified_amount")
+
 # Again a lot of levels. Let's transform this variable to show the amount of time
 # (in years) that the host has been a host
 unique(train$host_since)
@@ -384,6 +394,8 @@ count_years_host <- function(x) {
 }
 
 train$years_as_host <- unlist(lapply(train$host_since, count_years_host))
+
+features <- c(features, "years_as_host")
 
 # Build a linear regression model to predict response rate from other properties
 model <- lm(host_response_rate ~ host_location + host_response_time + 
@@ -431,6 +443,7 @@ train[which(is.na(train$host_response_rate)), "host_response_rate"] <- predictio
 if(all(train$host_nr_listings == train$host_nr_listings_total, na.rm = TRUE)) {
   print("Column A and B are identical")
 }
+train <- select(train, -c("host_nr_listings_total"))
 
 # Does a host really have 591 properties?
 boxplot(train$host_nr_listings)
@@ -612,6 +625,8 @@ for (i in 1:6495){
 }
 train$profile_pic <- factor(vector)
 
+features <- c(features, "profile_pic")
+
 #exact_location
 vector = numeric(6495)
 for (i in 1:6495){
@@ -620,6 +635,8 @@ for (i in 1:6495){
   }
 }
 train$exact_location <- factor(vector)
+
+features <- c(features, "exact_location")
 
 #instant_bookable
 vector = numeric(6495)
@@ -630,6 +647,8 @@ for (i in 1:6495){
 }
 train$instant_bookable <- factor(vector)
 
+features <- c(features, "instant_bookable")
+
 #superhost
 vector = numeric(6495)
 for (i in 1:6495){
@@ -638,6 +657,8 @@ for (i in 1:6495){
   }
 }
 train$superhost <- factor(vector)
+
+features <- c(features, "superhost")
 
 #identified_host
 vector = numeric(6495)
@@ -648,5 +669,33 @@ for (i in 1:6495){
 }
 train$identified_host <- factor(vector)
 
+features <- c(features, "identified_host")
 
+targets <- c("target", "bc_target")
 
+# Removing all of the variables listed below (for now):
+# "property_type"              "property_zipcode"
+# "property_id"                "property_name"              "property_summary"          
+# "property_space"             "property_desc"              "property_neighborhood"     
+# "property_notes"             "property_transit"           "property_access"           
+# "property_interaction"       "property_rules"             "property_lat
+# "property_lon"               "property_amenities"         "property_sqfeet"
+# "property_scraped_at"        "host_about"                 "extra"
+
+# Maybe further remove the following variables
+# "host_since"                 "host_location"              "host_verified"
+features_to_keep <- c("property_room_type",
+                      "property_max_guests","property_bathrooms", "property_bedrooms",
+                      "property_beds", "property_bed_type", "property_last_updated",
+                      "host_id", "host_since", "host_location", "host_response_time",
+                      "host_response_rate", "host_nr_listings", "host_verified",
+                      "booking_price_covers", "booking_min_nights", "booking_max_nights",      
+                      "booking_availability_30", "booking_availability_60", "booking_availability_90",   
+                      "booking_availability_365", "booking_cancel_policy", "reviews_num",               
+                      "reviews_first", "reviews_last", "reviews_rating", "reviews_acc",
+                      "reviews_cleanliness", "reviews_checkin", "reviews_communication",
+                      "reviews_location", "reviews_per_month")
+keep <- c(targets, features_to_keep, features)
+
+# Write final data set to csv
+write.csv(select(train, keep), "data/preprocessed_train.csv", row.names = FALSE)
