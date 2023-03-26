@@ -449,6 +449,46 @@ train <- select(train, -c("host_nr_listings_total"))
 boxplot(train$host_nr_listings)
   # Extremely skewed variable...
 
+# Impact of the host values on the target variable 
+
+# Convert host_since variable to date format
+data$host_since <- as.Date(data$host_since)
+
+# Subset only the relevant columns
+host_vars <- c("host_response_rate", "host_location", "host_nr_listings", "host_response_time", "host_verified", "host_since")
+# Load the dataset
+
+# Create a new plot for each host variable
+for (var in host_vars) {
+  # Calculate the correlation between "price" and the host variable
+  cor_val <- cor(data$price, data[, var], use = "complete.obs")
+  
+  # Create a scatter plot of the two variables
+  plot(data[, var], data$price, main = paste("Correlation with Price:", round(cor_val, 2)), 
+       xlab = var, ylab = "Price")
+  # And a boxplot 
+  boxplot((data[, var], data$price, main = paste("Correlation with Price:", round(cor_val, 2)), 
+               xlab = var, ylab = "Price"))
+}
+
+# Look at the model of the price 
+model <- lm(Price ~ host_response_rate + host_location_country + 
+              host_nr_listings + host_verified_amount + years_as_host, data = train)
+
+# for example make predictions for new data
+new_data <- data.frame(host_response_rate = 100,
+                       host_location_country = "BE",
+                       host_nr_listings = 1,
+                       host_verified_amount = 3,
+                       years_as_host = 6)
+
+predicted_response_rate <- predict(model, new_data)
+
+# Print the predicted response rate
+print(predicted_response_rate)
+
+
+
 # What is up with booking_min_nights being 1000 sometimes? 
 
 ###booking_price_covers###
