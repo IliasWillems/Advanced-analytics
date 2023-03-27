@@ -595,8 +595,10 @@ for (i in 1:length(train$reviews_num)){
 # reviews_first, reviews_last, reviews_per_month
 #
 
-#reviews_first and reviews_last: maybe create new variable reviews_period? The date 
-# of the last review is still valuable. (NEVER use dates directly -> lecture)
+
+#reviews_first and reviews_last: create new variable review_period. 
+#reviews_last might still be valuable
+train$review_period <- as.numeric(train$reviews_last - train$reviews_first)
 
 #I want to check if the 1290  missing values are the 0 values for reviews_num
 length(train$reviews_num[which(train$reviews_num==0)])
