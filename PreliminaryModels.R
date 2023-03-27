@@ -452,23 +452,29 @@ boxplot(train$host_nr_listings)
 # Impact of the host values on the target variable 
 
 # Convert host_since variable to date format
-data$host_since <- as.Date(data$host_since)
+train$host_since <- as.Date(train$host_since, format = "%y-%m-%d")
 
 # Subset only the relevant columns
-host_vars <- c("host_response_rate", "host_location", "host_nr_listings", "host_response_time", "host_verified", "host_since")
+host_vars <- c("host_response_rate", "host_location_country", "host_nr_listings",
+               "host_response_time", "host_verified", "host_since")
 # Load the dataset
 
 # Create a new plot for each host variable
 for (var in host_vars) {
-  # Calculate the correlation between "price" and the host variable
-  cor_val <- cor(data$price, data[, var], use = "complete.obs")
   
-  # Create a scatter plot of the two variables
-  plot(data[, var], data$price, main = paste("Correlation with Price:", round(cor_val, 2)), 
-       xlab = var, ylab = "Price")
+  # Only makes sense to compute correlations with numeric variables
+  if (is.numeric(train[,var])) {
+    # Calculate the correlation between "price" and the host variable
+    cor_val <- cor(train$target, train[, var], use = "complete.obs")
+    
+    # Create a scatter plot of the two variables
+    plot(train[, var], train$target, main = paste("Correlation with Price:", round(cor_val, 5)), 
+         xlab = var, ylab = "Price")
+  } 
+  
   # And a boxplot 
-  boxplot((data[, var], data$price, main = paste("Correlation with Price:", round(cor_val, 2)), 
-               xlab = var, ylab = "Price"))
+  boxplot(train$target ~ train[, var], main = paste("Correlation with Price:", round(cor_val, 5)), 
+          xlab = var, ylab = "Price")
 }
 
 # Look at the model of the price 
