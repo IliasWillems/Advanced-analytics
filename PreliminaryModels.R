@@ -597,47 +597,53 @@ train$booking_max_nights[train$property_id == 3792] <- 7
 ###booking_availability_30  + 60 + 90 +365
 # Check unique values and their frequencies for booking_availability_30
 table(train$booking_availability_30)
-ggplot(train, aes(x = booking_availability_30)) + 
-  geom_histogram(binwidth = 0.05, fill = "blue", color = "black") + 
-  labs(title = "Booking Availability in 365 days", x = "Booking Availability", y = "Count")
 
 # Check unique values and their frequencies for booking_availability_60
 table(train$booking_availability_60)
-ggplot(train, aes(x = booking_availability_60)) + 
-  geom_histogram(binwidth = 0.05, fill = "blue", color = "black") + 
-  labs(title = "Booking Availability in 365 days", x = "Booking Availability", y = "Count")
 
 # Check unique values and their frequencies for booking_availability_90
 table(train$booking_availability_90)
-ggplot(train, aes(x = booking_availability_90)) + 
-  geom_histogram(binwidth = 0.05, fill = "blue", color = "black") + 
-  labs(title = "Booking Availability in 365 days", x = "Booking Availability", y = "Count")
 
 # Check unique values and their frequencies for booking_availability_365
 table(train$booking_availability_365)
-ggplot(train, aes(x = booking_availability_365)) + 
-  geom_histogram(binwidth = 0.05, fill = "blue", color = "black") + 
-  labs(title = "Booking Availability in 365 days", x = "Booking Availability", y = "Count")
 
+#any unusual values, we will split the categories in 3, such that each categories contains as much rows:
+# Create quantiles
+q30 <- quantile(train$booking_availability_30, probs = c(0.33, 0.66))
+q60 <- quantile(train$booking_availability_60, probs = c(0.33, 0.66))
+q90 <- quantile(train$booking_availability_90, probs = c(0.33, 0.66))
+q365 <- quantile(train$booking_availability_365, probs = c(0.33, 0.66))
 
-#any unusual values
-#??????convert to 0 and 1? :
+# Divide into categories
+train$category_30 <- cut(train$booking_availability_30, breaks = unique(c(-Inf, q30, Inf)), labels = c("low", "medium", "high"))
+train$category_60 <- cut(train$booking_availability_60, breaks = unique(c(-Inf, q60, Inf)), labels = c("low", "medium", "high"))
+train$category_90 <- cut(train$booking_availability_90, breaks = unique(c(-Inf, q90, Inf)), labels = c("low", "medium", "high"))
+train$category_365 <- cut(train$booking_availability_365, breaks = unique(c(-Inf, q365, Inf)), labels = c("low", "medium", "high"))
 
-### Make sure all values are between 0 and 1
-# train$booking_availability_30[train$booking_availability_30 < 0] <- 0
-# train$booking_availability_30[train$booking_availability_30 > 1] <- 1
-# train$booking_availability_60[train$booking_availability_60 < 0] <- 0
-# train$booking_availability_60[train$booking_availability_60 > 1] <- 1
-# train$booking_availability_90[train$booking_availability_90 < 0] <- 0
-# train$booking_availability_90[train$booking_availability_90 > 1] <- 1
-# train$booking_availability_365[train$booking_availability_365 < 0] <- 0
-# train$booking_availability_365[train$booking_availability_365 > 1] <- 1
+# Create dummy columns for category_30
+train$category_30_low <- ifelse(train$category_30 == "low", 1, 0)
+train$category_30_medium <- ifelse(train$category_30 == "medium", 1, 0)
+train$category_30_high <- ifelse(train$category_30 == "high", 1, 0)
+
+# Create dummy columns for category_60
+train$category_60_low <- ifelse(train$category_60 == "low", 1, 0)
+train$category_60_medium <- ifelse(train$category_60 == "medium", 1, 0)
+train$category_60_high <- ifelse(train$category_60 == "high", 1, 0)
+
+# Create dummy columns for category_90
+train$category_90_low <- ifelse(train$category_90 == "low", 1, 0)
+train$category_90_medium <- ifelse(train$category_90 == "medium", 1, 0)
+train$category_90_high <- ifelse(train$category_90 == "high", 1, 0)
+
+# Create dummy columns for category_365
+train$category_365_low <- ifelse(train$category_365 == "low", 1, 0)
+train$category_365_medium <- ifelse(train$category_365 == "medium", 1, 0)
+train$category_365_high <- ifelse(train$category_365 == "high", 1, 0)
 
 
 ###booking_cancel_policy
 table(train$booking_cancel_policy)
 
-#??????????  only 1 time 'super_strict' , convert super_strict to strict? 
 train$booking_cancel_policy[train$booking_cancel_policy == "super_strict_30"] <- "strict"
 
 ###
