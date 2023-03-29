@@ -3,7 +3,8 @@
 rm(list = ls())
 
 # Load in data
-train <- read.csv("data/train.csv", header=TRUE)
+data <- read.csv("data/train.csv", header=TRUE)
+test <- read.csv("data/test.csv", header=TRUE)
 
 # Load necessary packages
 library(MASS)
@@ -13,17 +14,26 @@ library(rpart.plot)
 library(dplyr)
 library(ggplot2)
 
+source("Useful functions.R")
+
+################################################################################
+#                  Split into train and validation set                         #
+################################################################################
+
+set.seed(123456)
+train_size <- floor(0.80*nrow(data))
+train_idx <- sample(1:nrow(data), train_size, replace = FALSE)
+train <- data[train_idx, ]
+validation <- data[-train_idx, ]
+
 ################################################################################
 #                        Data inspection + cleaning                            #
 ################################################################################
 
-# BELANGRIJK: Alle analyses hieronder nemen niet in rekening dat de prijs niet
-#             altijd overeenstemt met prijs per nacht of prijs per persoon, maar
-#             dat het kan zijn dat je zou moeten bijbetalen voor extra personen.
-#             
-#             --> Afspreken hoe we dit oplossen!
+# All data cleaning will be done first on the training data and only later
+# applied to the validation data and test data set.
 
-summary(train)
+summary(data)
 
 # In the following, we will create some features of our own. It might be useful
 # to have a vector that stores these features names.
@@ -52,7 +62,6 @@ boxplot(bc_target)
 # lambda_opt = -18/99
 
 train$bc_target <- bc_target
-features <- c(features, "bc_target")
 
 #
 # Property_id
@@ -92,6 +101,7 @@ train$property_zip_missing <- as.numeric(train$property_zipcode == "")
   # 2) Look at latitude and longitude values and find nearest neighbours <--
 
   # For all properties with a missing zip code...
+  K_zipcode <- 5
   for (idx in missing_zip_idx) {
     
     # Store the geographical coordinates of that property
@@ -105,11 +115,10 @@ train$property_zip_missing <- as.numeric(train$property_zipcode == "")
     #     neighbour is again an observation with missing zip code. Since we put
     #     all the most uncommon zipcodes into one category later, this
     #     decision won't matter anyway.
-    K <- 5
     
     # Find K nearest neighbours (euclidean distance) in terms of coordinates
     distances <- sqrt((train$property_lat - lat)^2 + (train$property_lon - lon)^2)
-    neirest_idxs <- sort(distances, index.return = TRUE)$ix[2:(K+1)]
+    neirest_idxs <- sort(distances, index.return = TRUE)$ix[2:(K_zipcode+1)]
     
     # Look at their zip codes, select the most common one and assign it to the
     # previously missing value.
@@ -171,7 +180,7 @@ if (!do_reg_tree) {
   
 } else {
   
-  tree_zipcode <- rpart(price ~ zipcode, data = zipcode_data, control=rpart.control(cp=.0003))
+  tree_zipcode <- rpart(price ~ zipcode, data = zipcode_data, control=rpart.control(cp=.00001))
   printcp(tree_zipcode)
   
   #plot the pruned tree
@@ -285,7 +294,7 @@ if (!do_reg_tree) {
   
 } else {
   
-  tree_prop_type <- rpart(price ~ type, data = type_data, control=rpart.control(cp=.0001))
+  tree_prop_type <- rpart(price ~ type, data = type_data, control=rpart.control(cp=.00001))
   printcp(tree_prop_type)
   
   #plot the pruned tree
@@ -315,33 +324,10 @@ plot(train$property_max_guests, bc_target)
 #
 
 # Treat missing values. We could create a variable indicating whether the value
-# was missing but since there are only 12, this is probably not very informative
+# was missing but since there are only 12, this is probably not very informative.
 
-# train$property_bathrooms_missing <- rep(0, nrow(train))
-# train[which(is.na(train$property_bathrooms)), "property_bathrooms_missing"] <- 1
-train[which(is.na(train$property_bathrooms)), "property_desc"]
-  
-# Based on these descriptions, it seems that the number of bathrooms in each
-  # of the properties with missing values for them could be
-  # [1] 0 (shared)
-  # [2] 0 (shared)
-  # [3] 1
-  # [4] 1 (probably)
-  # [5] Not clear
-  # [6] Not clear
-  # [7] at least 1
-  # [8] 1
-  # [9] 1
-  # [10] 1
-  # [11] 1 
-  # [12] 1
-  #
-  # Maybe just change these values manually?
-  replacements_bathrooms <- c(0, 0, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1)
-  bathroom_missing_idxs <- which(is.na(train$property_bathrooms))
-  for (i in 1:length(bathroom_missing_idxs)) {
-    train[bathroom_missing_idxs[i], "property_bathrooms"] <- replacements_bathrooms[i]
-  }
+median_bathrooms <- median(train$property_bathrooms, na.rm = TRUE)
+train[which(is.na(train$property_bathrooms)), "property_bathrooms"] <- median_bathrooms
   
 # Some properties have 0 bathrooms and some have a non-integer amount of
 # bathrooms. Since the number of bathrooms is usually an indication of the 
@@ -361,9 +347,10 @@ table(train$property_bedrooms)
 # Treat missing values. Based on the property descriptions it is not always
 # clear how many bedrooms there are, but most of the time, 1 seems a reasonable
 # guess.
+median_bedrooms <- median(train$property_bedrooms, na.rm = TRUE)
 bedrooms_missing_idx <- which(is.na(train$property_bedrooms))
 train[bedrooms_missing_idx, "property_desc"]
-train[bedrooms_missing_idx, "property_bedrooms"] <- 1
+train[bedrooms_missing_idx, "property_bedrooms"] <- median_bedrooms
 
 #
 # property_beds
@@ -375,9 +362,14 @@ table(train$property_beds)
 # descriptions, so we just make it equal to the median amount of beds
 beds_missing_idx <- which(is.na(train$property_beds))
 length(beds_missing_idx)
-train[beds_missing_idx, "property_desc"]
-train[beds_missing_idx, "property_beds"] <- median(train$property_beds, na.rm = TRUE)
 
+median_beds <- median(train$property_beds, na.rm = TRUE)
+train[beds_missing_idx, "property_desc"]
+train[beds_missing_idx, "property_beds"] <- median_beds
+
+#
+# host_id, host_location
+#
 
 ## How many unique hosts are there?
 num_unique_host_ids <- length(unique(train$host_id))
@@ -392,14 +384,6 @@ head(train[,c("host_response_rate", "host_location", "host_response_time",
 # There are a lot of different levels for the location of the host. Maybe boil
 # it down to just country of origin.
 unique(train$host_location)
-
-get_host_country <- function(x) {
-  if (x == "") {
-    "Other"
-  } else {
-    tail(trimws(unlist(strsplit(x, ","))), n=1)
-  }
-}
 
 host_location_country <- lapply(train$host_location, get_host_country)
 host_location_country <- unlist(lapply(train$host_location, get_host_country))
@@ -417,7 +401,9 @@ features <- c(features, "host_location_country")
 
 # Only 1 missing value. Impute it by the median of host_nr_listings
 length(which(is.na(train$host_nr_listings)))
-train[which(is.na(train$host_nr_listings)), "host_nr_listings"] <- median(train$host_nr_listings, na.rm = TRUE)
+
+median_host_nr_listings <- median(train$host_nr_listings, na.rm = TRUE)
+train[which(is.na(train$host_nr_listings)), "host_nr_listings"] <- median_host_nr_listings
 
 # Does a host really have 591 listings? This makes the variable very skewed.
 hist(train$host_nr_listings)
@@ -429,8 +415,6 @@ hist(train$host_nr_listings)
 length(which(train$host_nr_listings == 0))
 log_host_listings <- log(pmax(train$host_nr_listings, 1))
 plot(log_host_listings, train$target/train$booking_price_covers)
-
-train$log_host_listings <- log_host_listings
 
 #
 # host_response_time
@@ -449,9 +433,6 @@ table(train[which(is.na(train$host_response_rate)), "host_response_time"])
 # amount of verifications.
 unique(train$host_verified)
 
-count_verifications <- function(x) {
-  length(unlist(strsplit(x, ",")))
-}
 train$host_verified_amount <- unlist(lapply(train$host_verified, count_verifications))
 
 features <- c(features, "host_verified_amount")
@@ -464,14 +445,10 @@ features <- c(features, "host_verified_amount")
 # (in years) that the host has been a host
 unique(train$host_since)
 
-count_years_host <- function(x) {
-  this_year <- as.numeric(substr(Sys.Date(), 1, 4))
-  host_since_year <- as.numeric(substr(x, 1, 4))
-  max(0, this_year - host_since_year)
-}
-
 train$years_as_host <- unlist(lapply(train$host_since, count_years_host))
-train[which(is.na(train$years_as_host)), "years_as_host"] <- median(train$years_as_host, na.rm = TRUE)
+
+median_years_as_host <- median(train$years_as_host, na.rm = TRUE)
+train[which(is.na(train$years_as_host)), "years_as_host"] <- median_years_as_host
 
 features <- c(features, "years_as_host")
 
@@ -479,23 +456,24 @@ use_new_model <- TRUE
 
 if (use_new_model) {
   # Build a linear regression model to predict response rate from other properties
-  model <- lm(host_response_rate ~ host_location_country + 
-                host_nr_listings + host_verified_amount + years_as_host, data = train)
+  model_response_rate <- lm(host_response_rate ~ host_location_country + 
+                            host_nr_listings + host_verified_amount +
+                              years_as_host, data = train)
   
   # for example make predictions for new data based on the trained model
   new_data <- data.frame(host_location_country = "BE",
                          host_nr_listings = 1,
                          host_verified_amount = 3,
                          years_as_host = 6)
-  predicted_response_rate <- predict(model, new_data)
+  predicted_response_rate <- predict(model_response_rate, new_data)
   
   # Print the predicted response rate
   print(predicted_response_rate)
   
 } else {
   # Build a linear regression model to predict response rate from other properties
-  model <- lm(host_response_rate ~ host_location + host_response_time + 
-                host_nr_listings + host_verified + host_since, data = train)
+  model_response_rate <- lm(host_response_rate ~ host_location + host_response_time + 
+                            host_nr_listings + host_verified + host_since, data = train)
   
   # for example make predictions for new data based on the trained model
   new_data <- data.frame(host_location = "Brussels, Brussels, Belgium",
@@ -503,17 +481,18 @@ if (use_new_model) {
                          host_nr_listings = 1,
                          host_verified = "email, phone, reviews",
                          host_since = "2013-11-14")
-  predicted_response_rate <- predict(model, new_data)
+  predicted_response_rate <- predict(model_response_rate, new_data)
   
   # Print the predicted response rate
   print(predicted_response_rate)
 }
 
 # use this model to impute missing values for host_response_rate
-predictions <- predict(model, train[which(is.na(train$host_response_rate)),
-                                    c("host_location_country", "host_response_time",
-                                      "host_nr_listings", "host_verified_amount",
-                                      "years_as_host")])
+predictions <- predict(model_response_rate,
+                       train[which(is.na(train$host_response_rate)),
+                              c("host_location_country", "host_response_time",
+                              "host_nr_listings", "host_verified_amount",
+                              "years_as_host")])
 predictions <- pmin(predictions, 100)
 which(is.na(predictions))
 
@@ -640,6 +619,10 @@ train$category_365_low <- ifelse(train$category_365 == "low", 1, 0)
 train$category_365_medium <- ifelse(train$category_365 == "medium", 1, 0)
 train$category_365_high <- ifelse(train$category_365 == "high", 1, 0)
 
+features <- c(features, "category_30_low", "category_30_medium", "category_30_high",
+              "category_60_low", "category_60_medium", "category_60_high",
+              "category_90_low", "category_90_medium", "category_90_high",
+              "category_365_low", "category_365_medium", "category_365_high")
 
 ###booking_cancel_policy
 table(train$booking_cancel_policy)
@@ -724,36 +707,44 @@ boxplot(bc_reviews_per_month)
 # reviews_rating
 #
 
+mean_reviews_acc <- mean(train$reviews_acc,na.rm=TRUE)
+mean_reviews_cleanliness <- mean(train$reviews_cleanliness,na.rm=TRUE)
+mean_reviews_checkin <- mean(train$reviews_checkin,na.rm=TRUE)
+mean_reviews_communication <- mean(train$reviews_communication,na.rm=TRUE)
+mean_reviews_location <- mean(train$reviews_location,na.rm=TRUE)
+mean_reviews_value <- mean(train$reviews_value,na.rm=TRUE)
+mean_reviews_rating <- mean(train$reviews_rating,na.rm=TRUE)
+
 # Here we have some additional missing values in the data. -> random missing values
 # We can replace these (but keep NA for the 1290 airbnb's with no reviews)
 for (i in 1:length(train$reviews_acc)){
-  if (is.na(train$reviews_acc[i]) & (is.na(train$reviews_per_month[i]) == FALSE)){train$reviews_acc[i] = mean(train$reviews_acc,na.rm=TRUE)}
+  if (is.na(train$reviews_acc[i]) & (is.na(train$reviews_per_month[i]) == FALSE)){train$reviews_acc[i] = mean_reviews_acc}
 }
 
 # do the same thing for the others
 
 for (i in 1:length(train$reviews_cleanliness)){
-  if (is.na(train$reviews_cleanliness[i]) & (is.na(train$reviews_per_month[i]) == FALSE)){train$reviews_cleanliness[i] = mean(train$reviews_cleanliness,na.rm=TRUE)}
+  if (is.na(train$reviews_cleanliness[i]) & (is.na(train$reviews_per_month[i]) == FALSE)){train$reviews_cleanliness[i] = mean_reviews_cleanliness}
 }
 
 for (i in 1:length(train$reviews_checkin)){
-  if (is.na(train$reviews_checkin[i]) & (is.na(train$reviews_per_month[i]) == FALSE)){train$reviews_checkin[i] = mean(train$reviews_checkin,na.rm=TRUE)}
+  if (is.na(train$reviews_checkin[i]) & (is.na(train$reviews_per_month[i]) == FALSE)){train$reviews_checkin[i] = mean_reviews_checkin}
 }
 
 for (i in 1:length(train$reviews_communication)){
-  if (is.na(train$reviews_communication[i]) & (is.na(train$reviews_per_month[i]) == FALSE)){train$reviews_communication[i] = mean(train$reviews_communication,na.rm=TRUE)}
+  if (is.na(train$reviews_communication[i]) & (is.na(train$reviews_per_month[i]) == FALSE)){train$reviews_communication[i] = mean_reviews_communication}
 }
 
 for (i in 1:length(train$reviews_location)){
-  if (is.na(train$reviews_location[i]) & (is.na(train$reviews_per_month[i]) == FALSE)){train$reviews_location[i] = mean(train$reviews_location,na.rm=TRUE)}
+  if (is.na(train$reviews_location[i]) & (is.na(train$reviews_per_month[i]) == FALSE)){train$reviews_location[i] = mean_reviews_location}
 }
 
 for (i in 1:length(train$reviews_value)){
-  if (is.na(train$reviews_value[i]) & (is.na(train$reviews_per_month[i]) == FALSE)){train$reviews_value[i] = mean(train$reviews_value,na.rm=TRUE)}
+  if (is.na(train$reviews_value[i]) & (is.na(train$reviews_per_month[i]) == FALSE)){train$reviews_value[i] = mean_reviews_value}
 }
 
 for (i in 1:length(train$reviews_rating)){
-  if (is.na(train$reviews_rating[i]) & (is.na(train$reviews_per_month[i]) == FALSE)){train$reviews_rating[i] = mean(train$reviews_rating,na.rm=TRUE)}
+  if (is.na(train$reviews_rating[i]) & (is.na(train$reviews_per_month[i]) == FALSE)){train$reviews_rating[i] = mean_reviews_rating}
 }
 
 #
@@ -762,8 +753,8 @@ for (i in 1:length(train$reviews_rating)){
 
 # we want to make different categories based on the strings inside this variable ...
 #profile_pic
-vector = numeric(6495)
-for (i in 1:6495){
+vector = numeric(nrow(train))
+for (i in 1:nrow(train)){
   if (grepl("Host Has Profile Pic",  train$extra[i], fixed = TRUE)){
     vector[i] = 1
   }
@@ -773,8 +764,8 @@ train$profile_pic <- factor(vector)
 features <- c(features, "profile_pic")
 
 #exact_location
-vector = numeric(6495)
-for (i in 1:6495){
+vector = numeric(nrow(train))
+for (i in 1:nrow(train)){
   if (grepl("Is Location Exact",  train$extra[i], fixed = TRUE)){
     vector[i] = 1
   }
@@ -784,8 +775,8 @@ train$exact_location <- factor(vector)
 features <- c(features, "exact_location")
 
 #instant_bookable
-vector = numeric(6495)
-for (i in 1:6495){
+vector = numeric(nrow(train))
+for (i in 1:nrow(train)){
   if (grepl("Instant Bookable",  train$extra[i], fixed = TRUE)){
     vector[i] = 1
   }
@@ -795,8 +786,8 @@ train$instant_bookable <- factor(vector)
 features <- c(features, "instant_bookable")
 
 #superhost
-vector = numeric(6495)
-for (i in 1:6495){
+vector = numeric(nrow(train))
+for (i in 1:nrow(train)){
   if (grepl("Host Is Superhost",  train$extra[i], fixed = TRUE)){
     vector[i] = 1
   }
@@ -806,8 +797,8 @@ train$superhost <- factor(vector)
 features <- c(features, "superhost")
 
 #identified_host
-vector = numeric(6495)
-for (i in 1:6495){
+vector = numeric(nrow(train))
+for (i in 1:nrow(train)){
   if (grepl("Host Identity Verified",  train$extra[i], fixed = TRUE)){
     vector[i] = 1
   }
@@ -846,4 +837,45 @@ train_preprocessed <- select(train, all_of(keep))
 colSums(is.na(train_preprocessed))
 
 # Write final data set to csv
-write.csv(select(train, keep), "data/preprocessed_train.csv", row.names = FALSE)
+write.csv(train_preprocessed, "data/preprocessed_train.csv", row.names = FALSE)
+
+params_and_models <- list(
+  lambda_opt,
+  K_zipcode,
+  uncommon_zipcodes,
+  tree_zipcode,
+  median_bathrooms,
+  median_bedrooms,
+  median_beds,
+  median_host_nr_listings,
+  median_years_as_host,
+  model_response_rate,
+  mean_reviews_acc,
+  mean_reviews_cleanliness,
+  mean_reviews_checkin,
+  mean_reviews_communication,
+  mean_reviews_location,
+  mean_reviews_value,
+  mean_reviews_rating,
+  keep
+)
+
+
+################################################################################
+#                       Preprocess validation and test data                    #
+################################################################################
+
+source("Useful functions.R")
+
+preprocess_data(validation, train, params_and_models, "preprocessed_validation")
+preprocess_data(test, train, params_and_models, "preprocessed_test")
+
+validation_preprocessed <- read.csv("data/preprocessed_validation.csv", header=TRUE)
+colSums(is.na(validation_preprocessed))
+
+# test_preprocessed <- read.csv("data/preprocessed_test.csv", header=TRUE)
+# colSums(is.na(test_preprocessed))
+
+
+
+

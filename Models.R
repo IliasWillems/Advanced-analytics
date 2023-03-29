@@ -4,6 +4,7 @@ rm(list = ls())
 
 # Load in data
 train <- read.csv("data/preprocessed_train.csv", header=TRUE)
+validation <- read.csv("data/preprocessed_validation.csv", header=TRUE)
 
 # Load necessary packages
 library(dplyr)
@@ -11,14 +12,13 @@ library(ODRF)
 
 # Convert all character variables to factors
 train <- train %>% mutate_if(is.character, as.factor)
-
-# Drop a few more variables, for now
-train <- select(train, -c("property_last_updated", "host_id", "reviews_first",
-                          "reviews_last"))
+validation <- validation %>% mutate_if(is.character, as.factor)
 
 ################################################################################
 
+# !!!
 # We still need to handle missing values for reviews
+# !!!
 
 ################################################################################
 
@@ -32,6 +32,16 @@ train_normal_ppp$target <- train_normal_ppp$target/train_normal$booking_price_co
 train_bc_ppp <- select(train_bc, -c("booking_price_covers"))
 train_bc_ppp$bc_target <- train_bc_ppp$bc_target/train_bc$booking_price_covers
 
+# Also for validation set
+validation_normal <- select(validation, -c("bc_target"))
+validation_bc <- select(validation, -c("target"))
+
+validation_normal_ppp <- select(validation_normal, -c("booking_price_covers"))
+validation_normal_ppp$target <- validation_normal_ppp$target/validation_normal$booking_price_covers
+
+validation_bc_ppp <- select(validation_bc, -c("booking_price_covers"))
+validation_bc_ppp$bc_target <- validation_bc_ppp$bc_target/validation_bc$booking_price_covers
+
 ################################################################################
 
 # Function to compute RMSE
@@ -44,6 +54,62 @@ bc2normal <- function(bc) {
   lambda_opt <- -18/99
   
   (bc*lambda_opt + 1)^(1/lambda_opt)
+}
+
+# Compute RMSE on training set
+compute_RMSE_train <- function(model, model_variables, pred_for_ppp, pred_for_bc_target) {
+  
+  if (pred_for_ppp & pred_for_bc_target) {
+    
+    pred <- predict(model, Xnew = data.frame(train_bc_ppp[, model_variables]))
+    pred <- pred*train$booking_price_covers
+    pred <- bc2normal(pred)
+    
+  } else if (pred_for_ppp & !pred_for_bc_target) {
+    
+    pred <- predict(model, Xnew = data.frame(train_normal_ppp[, model_variables]))
+    pred <- pred*validation$booking_price_covers
+    
+  } else if (!pred_for_ppp & pred_for_bc_target) {
+    
+    pred <- predict(model, Xnew = data.frame(train_bc[, model_variables]))
+    pred <- bc2normal(pred)
+    
+  } else {
+    
+    pred <- predict(model, Xnew = data.frame(train[, model_variables]))
+    
+  }
+  
+  compute_RMSE(pred, validation$target)
+}
+
+
+# Compute RMSE on validation set
+compute_RMSE_validation <- function(model, model_variables, pred_for_ppp, pred_for_bc_target) {
+  
+  if (pred_for_ppp & pred_for_bc_target) {
+    
+    pred <- predict(model, Xnew = data.frame(validation_bc_ppp[, model_variables]))
+    pred <- pred*train$booking_price_covers
+    pred <- bc2normal(pred)
+    
+  } else if (pred_for_ppp & !pred_for_bc_target) {
+    
+    pred <- predict(model, Xnew = data.frame(validation_normal_ppp[, model_variables]))
+    pred <- pred*validation$booking_price_covers
+    
+  } else if (!pred_for_ppp & pred_for_bc_target) {
+    
+    pred <- predict(model, Xnew = data.frame(validation_bc[, model_variables]))
+    pred <- bc2normal(pred)
+    
+  } else {
+    
+    pred <- predict(model, Xnew = data.frame(validation[, model_variables]))
+  }
+  
+  compute_RMSE(pred, validation$target)
 }
 
 ################################################################################
@@ -60,27 +126,47 @@ compute_RMSE(mean_target, train$target)
 # Oblique decision tree-based random forest
 
 # We train the tree on the true target variable but taking booking_price_covers
-# into account.
+# into account. Because this function gives an error otherwise, we only fit the
+# model using 4 variables.
 forest <- ODRF(target ~ superhost + zipcode_class + type_class + dist_nearest_city_center,
                data = train_normal_ppp, split = "mse",
                parallel = TRUE)
 
-predictions <- predict(forest, Xnew = data.frame(train[, c("superhost", "zipcode_class", "type_class", "dist_nearest_city_center")]))
-compute_RMSE(predictions*train_normal$booking_price_covers, train$target)
+# Put all variables used in the model in a vector
+model_variables <- c("superhost", "zipcode_class", "type_class", "dist_nearest_city_center")
 
-# Other approaches?
+# RMSE on training set
+# Since the model predicts the price per person, we set 'pred_for_ppp = TRUE'.
+# Since the model does not work with the box-cox tranformed target variable, we
+#   set 'pred_for_bc_target = FALSE'.
+compute_RMSE_train(forest, model_variables, pred_for_ppp = TRUE, pred_for_bc_target = FALSE)
+
+# RMSE on validation set
+# Since the model predicts the price per person, we set 'pred_for_ppp = TRUE'.
+# Since the model does not work with the box-cox tranformed target variable, we
+#   set 'pred_for_bc_target = FALSE'.
+compute_RMSE_validation(forest, model_variables, pred_for_ppp = TRUE, pred_for_bc_target = FALSE)
+
+################################################################################
+
+# Other models?
 
 # Regular linear regression, but...
 #   - Find out which variables are important using stepwise selection methods
 #   - Find out which variables to transform and how
 #     - In a any case, the target should be transformed (also allow negatives)
+#     - For example, host_nr_listings is very skew. Maybe a log-transformation
+#       applied to it improves the results of the model?
+#     - Same thing for reviews_num
+#     - ...
 #   - Are the assumptions of the linear model satisfied?
 #   - Think about useful interactions
 #     - Or just include all and select automatically?
 
 # Ridge/Lasso
+#   - Which variables are selected?
 
-# Generalized additive models
+# (Generalized additive models)
 
 # For the above three models, maybe an improvement is possible by first fitting
 # a classifier on a categorized target variable and then fitting the regression
@@ -99,10 +185,6 @@ compute_RMSE(predictions*train_normal$booking_price_covers, train$target)
 # If everyone has a model --> Put them together in an ensemble.
 
 # Some other things to do:
-
-# - If we agree on all the preprocessing steps, someone should extract all of
-#   the models and parameters in that file and make a new script with which we
-#   can preprocess the test data in the same way.
 
 # - Think about more models? :)
 
