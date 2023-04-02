@@ -1,4 +1,3 @@
-
 # Clear work space
 rm(list = ls())
 
@@ -9,6 +8,7 @@ validation <- read.csv("data/preprocessed_validation.csv", header=TRUE)
 # Load necessary packages
 library(dplyr)
 library(ODRF)
+library('corrr')
 
 # Convert all character variables to factors
 train <- train %>% mutate_if(is.character, as.factor)
@@ -163,6 +163,16 @@ compute_RMSE_validation(forest, model_variables, pred_for_ppp = TRUE, pred_for_b
 #   - Think about useful interactions
 #     - Or just include all and select automatically?
 
+#PCA -> only for numeric
+#I'm looking at the correlations between the target and the other numeric columns
+# 0 if not numeric, NA if there are missing values
+correlations = rep(0,57)
+for (i in 1:57){
+  if  (is.numeric(preprocessed_train[,i])){
+  correlations[i] = cor(preprocessed_train$target,preprocessed_train[,i])}
+}
+#colnames(preprocessed_train)
+
 # Ridge/Lasso
 #   - Which variables are selected?
 
@@ -188,11 +198,5 @@ compute_RMSE_validation(forest, model_variables, pred_for_ppp = TRUE, pred_for_b
 
 # - Think about more models? :)
 
-
-
-
-
-
-
-
-
+# - model evaluation
+# - ensemble modelling
