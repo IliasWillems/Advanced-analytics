@@ -21,6 +21,27 @@ validation <- validation %>% mutate_if(is.character, as.factor)
 # We still need to handle missing values for reviews
 # !!!
 
+# I made review_period 0 if there were no reviews.
+for (i in 1:5196){
+  if (is.na(preprocessed_train$review_period[i])){
+    preprocessed_train$review_period[i] = 0
+  }
+}
+# For reviews_per_month the same thing
+for (i in 1:5196){
+  if (is.na(preprocessed_train$reviews_per_month[i])){
+    preprocessed_train$review_period[i] = 0
+  }
+}
+
+# for the review scores I'm not sure what to do
+# they're not missing at random
+# there's 1290 missing values, which is a lot
+
+#for (i in 1:length(train$reviews_acc)){
+  #if (is.na(train$reviews_acc[i])){train$reviews_acc[i] = }
+#}
+
 ################################################################################
 
 # Define some useful data frames
