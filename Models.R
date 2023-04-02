@@ -11,6 +11,7 @@ library(ODRF)
 library('corrr')
 library(ggcorrplot)
 library(class)
+library(xgboost)
 
 # Convert all character variables to factors
 train <- train %>% mutate_if(is.character, as.factor)
@@ -206,6 +207,14 @@ for (i in 1:57){
 }
 #colnames(preprocessed_train)
 
+#linear regression
+# These chosen variables can be changed!!!
+lr_model_variables <- c("superhost", "zipcode_class", "booking_price_covers")
+lr_model <- lm(train$target ~ train$superhost + train$zipcode_class + train$booking_price_covers , data = train)
+#compute rmse
+compute_RMSE_train(lr_model, lr_model_variables, pred_for_ppp = TRUE, pred_for_bc_target = FALSE)
+compute_RMSE_validation(lr_model, lr_model_variables, pred_for_ppp = TRUE, pred_for_bc_target = FALSE)
+
 # Ridge/Lasso
 #   - Which variables are selected?
 
@@ -217,7 +226,11 @@ for (i in 1:57){
 
 # Random forests
 
-# XGBoost
+# Gradient boosting
+# Extreme Gradient Boosting: XGBoost
+# These variables can be chosen!!!!
+#xgboost_model_variables <- c(32,34,45,55)
+#xgboost_model <- xgboost(data = train[,xgboost_model_variables], label = HIER, nrounds = 10, objective = "reg:linear")
 
 # Use clustering methods like Kmeans
 # k-nearest neighbours
