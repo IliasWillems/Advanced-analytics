@@ -281,11 +281,26 @@ ridgeModel <- glmnet(x, y, alpha = 0, lambda = 0.1)
 # Print the ridge coefficients
 print(coef(ridgeModel))
 
+#example variables
+lassoModel_variables <- c("superhost", "zipcode_class", "booking_price_covers")
+
+#compute rmse
+compute_RMSE_train(ridgeModel, ridgeModel_variables, pred_for_ppp = TRUE, pred_for_bc_target = FALSE)
+compute_RMSE_validation(ridgeModel, ridgeModel_variables, pred_for_ppp = TRUE, pred_for_bc_target = FALSE)
+
+
 # Perform lasso regression
 lassoModel <- glmnet(x, y, alpha = 1, lambda = 0.1)
 
 # Print the lasso coefficients
 print(coef(lassoModel))
+
+# Example variables
+lassoModel_variables <- c("superhost", "zipcode_class", "booking_price_covers")
+
+#compute rmse
+compute_RMSE_train(lassoModel, lassoModel_variables, pred_for_ppp = TRUE, pred_for_bc_target = FALSE)
+compute_RMSE_validation(lassoModel, lassoModel_variables, pred_for_ppp = TRUE, pred_for_bc_target = FALSE)
 
 
 # (Generalized additive models)
@@ -307,9 +322,12 @@ print(rfModel)
 # Make predictions on the test set
 predictions <- predict(rfModel, validation)
 
-# Evaluate the model accuracy
-accuracy <- mean(predictions == validation$target)
-print(paste("Accuracy:", accuracy))
+# Example variables 
+rfModel_variables <- c("superhost", "zipcode_class", "booking_price_covers")
+
+#compute rmse
+compute_RMSE_train(rfModel, rfModel_variables, pred_for_ppp = TRUE, pred_for_bc_target = FALSE)
+compute_RMSE_validation(rfModel, rfModel_variables, pred_for_ppp = TRUE, pred_for_bc_target = FALSE)
 
 
 # Gradient boosting
