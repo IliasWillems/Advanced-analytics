@@ -240,13 +240,20 @@ compute_RMSE_validation(forest, model_variables, pred_for_ppp = TRUE, pred_for_b
 
 # selecting by hand
 #PCA -> only for numeric
-train_numerical <- train
+# make a dataset of only the numeric variables
+indices_list <- c()
 for (i in 1:57){
   if  (!(is.numeric(train[,i]))){
-    train_numerical<- train_numerical[,-i]}
+    indices_list = append(indices_list, i)}
 }
+train_numerical <- train[,-indices_list]
+
+
 corr_matrix <- cor(train_numerical)
 ggcorrplot(corr_matrix)
+
+data.pca <- princomp(corr_matrix)
+summary(data.pca)
 
 # cor
 #I'm looking at the correlations between the target and the other numeric columns
