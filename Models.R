@@ -348,14 +348,14 @@ compute_RMSE_validation(rfModel, rfModel_variables, pred_for_ppp = TRUE, pred_fo
 # I used 4 variables (We could change this!! We could select others!)
 # number of neighbours k can also be changed
 
+
 knn_model_variables <- c(32,34,45,55)
-knn_model <- knn(train = train[,knn_model_variables], test = validation[,knn_model_variables], cl = train$target, k = 5)
+
+knn_model <- knn.reg(train = train[, knn_model_variables], y = train$target, test = validation[,knn_model_variables], k = 5)
 
 #compute RMSE on training and validation set for knn
-compute_RMSE_train(knn_model, knn_model_variables, pred_for_ppp = TRUE, pred_for_bc_target = FALSE)
-
-compute_RMSE_validation(knn_model, knn_model_variables, pred_for_ppp = TRUE, pred_for_bc_target = FALSE)
-
+sqrt(1/length(train$target) * sum((knn_model$pred - train$target)^2))
+sqrt(1/length(validation$target) * sum((knn_model$pred - validation$target)^2))
 
 # Make models that predict price based on different clusters of variables (like
 # property_..., host_..., booking_..., reviews_.., etc.) and then combine these
