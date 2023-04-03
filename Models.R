@@ -242,7 +242,7 @@ compute_RMSE_validation(forest, model_variables, pred_for_ppp = TRUE, pred_for_b
 #PCA -> only for numeric
 train_numerical <- train
 for (i in 1:57){
-  if  (!(is.numeric(preprocessed_train[,i]))){
+  if  (!(is.numeric(train[,i]))){
     train_numerical<- train_numerical[,-i]}
 }
 corr_matrix <- cor(train_numerical)
@@ -253,10 +253,10 @@ ggcorrplot(corr_matrix)
 # 0 if not numeric, NA if there are missing values
 correlations = rep(0,57)
 for (i in 1:57){
-  if  (is.numeric(preprocessed_train[,i])){
-    correlations[i] = cor(preprocessed_train$target,preprocessed_train[,i])}
+  if  (is.numeric(train[,i])){
+    correlations[i] = cor(train$target,train[,i])}
 }
-#colnames(preprocessed_train)
+#colnames(train)
 
 #linear regression
 # These chosen variables can be changed!!!
