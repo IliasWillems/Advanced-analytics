@@ -340,8 +340,37 @@ compute_RMSE_validation(rfModel, rfModel_variables, pred_for_ppp = TRUE, pred_fo
 # Gradient boosting
 # Extreme Gradient Boosting: XGBoost
 # These variables can be chosen!!!!
-#xgboost_model_variables <- c(32,34,45,55)
-#xgboost_model <- xgboost(data = train[,xgboost_model_variables], label = HIER, nrounds = 10, objective = "reg:linear")
+
+
+#XGBOOST
+# Define the features to use in the model
+features <- c("superhost", "zipcode_class", "booking_price_covers")
+
+# Convert the training and test sets into xgb.DMatrix objects
+dtrain <- xgb.DMatrix(as.matrix(train[, features]), label = train$target)
+dtest <- xgb.DMatrix(as.matrix(test[, features]), label = test$target)
+
+# Set the model parameters
+params <- list(
+  objective = "reg:squarederror",  # regression task with mean squared error
+  max_depth = 6,  # maximum tree depth
+  eta = 0.1,  # learning rate
+  gamma = 0,  # minimum loss reduction to create a new tree split
+  subsample = 1,  # subsample ratio of the training instances
+  colsample_bytree = 1  # subsample ratio of columns when constructing each tree
+)
+
+# Train the xgboost model
+bst <- xgb.train(params, dtrain, nrounds = 500)
+
+# Make predictions on the test set
+predictions <- predict(bst, dtest)
+
+# Compute the RMSE
+RMSE <- sqrt(mean((predictions - test$target)^2))
+print(paste0("RMSE: ", RMSE))
+
+
 
 # Use clustering methods like Kmeans
 # k-nearest neighbours
