@@ -217,6 +217,25 @@ compute_RMSE_validation(lr_model, lr_model_variables, pred_for_ppp = TRUE, pred_
 
 # Ridge/Lasso
 #   - Which variables are selected?
+# Load the glmnet package
+library(glmnet)
+
+# Create the predictor matrix and response vector
+x <- as.matrix(train[, -1])
+y <- train$target
+
+# Perform ridge regression
+ridgeModel <- glmnet(x, y, alpha = 0, lambda = 0.1)
+
+# Print the ridge coefficients
+print(coef(ridgeModel))
+
+# Perform lasso regression
+lassoModel <- glmnet(x, y, alpha = 1, lambda = 0.1)
+
+# Print the lasso coefficients
+print(coef(lassoModel))
+
 
 # (Generalized additive models)
 
@@ -225,6 +244,22 @@ compute_RMSE_validation(lr_model, lr_model_variables, pred_for_ppp = TRUE, pred_
 # models for each of the categories. (maybe leads to overfitting)
 
 # Random forests
+# Load the randomForest package
+library(randomForest)
+
+# Fit the random forest model
+rfModel <- randomForest(train$target ~ train$superhost + train$zipcode_class + train$booking_price_covers, data = train, ntree = 500, importance = TRUE)
+
+# Print the model summary
+print(rfModel)
+
+# Make predictions on the test set
+predictions <- predict(rfModel, validation)
+
+# Evaluate the model accuracy
+accuracy <- mean(predictions == validation$target)
+print(paste("Accuracy:", accuracy))
+
 
 # Gradient boosting
 # Extreme Gradient Boosting: XGBoost
