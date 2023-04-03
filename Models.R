@@ -4,6 +4,86 @@ rm(list = ls())
 # Load in data
 train <- read.csv("data/preprocessed_train.csv", header=TRUE)
 validation <- read.csv("data/preprocessed_validation.csv", header=TRUE)
+# If you imported the datasets by hand:
+#train <- preprocessed_train
+#validation<- preprocessed_validation
+
+################################################################################
+# We still need to handle missing values for reviews
+
+
+# I made review_period 0 if there were no reviews.
+for (i in 1:5196){
+  if (is.na(train$review_period[i])){
+    train$review_period[i] = 0
+  }
+}
+
+for (i in 1:1299){
+  if (is.na(validation$review_period[i])){
+    validation$review_period[i] = 0
+  }
+}
+# For reviews_per_month the same thing
+for (i in 1:5196){
+  if (is.na(train$reviews_per_month[i])){
+    train$reviews_per_month[i] = 0
+  }
+}
+
+for (i in 1:1299){
+  if (is.na(validation$reviews_per_month[i])){
+    validation$reviews_per_month[i] = 0
+  }
+}
+# for the review scores I'm not sure what to do
+# they're not missing at random
+# there's 1290 missing values, which is a lot
+# We also put them to 0
+# for reviews_acc, reviews_rating, reviews_cleanliness, reviews_checkin, reviews_communication, reviews_location
+
+for (i in 1:length(train$reviews_acc)){
+  if (is.na(train$reviews_acc[i])){train$reviews_acc[i] = 0}
+}
+for (i in 1:length(validation$reviews_acc)){
+  if (is.na(validation$reviews_acc[i])){validation$reviews_acc[i] = 0}
+}
+
+for (i in 1:length(train$reviews_rating)){
+  if (is.na(train$reviews_rating[i])){train$reviews_rating[i] = 0}
+}
+for (i in 1:length(validation$reviews_rating)){
+  if (is.na(validation$reviews_rating[i])){validation$reviews_rating[i] = 0}
+}
+
+for (i in 1:length(train$reviews_cleanliness)){
+  if (is.na(train$reviews_cleanliness[i])){train$reviews_cleanliness[i] = 0}
+}
+for (i in 1:length(validation$reviews_cleanliness)){
+  if (is.na(validation$reviews_cleanliness[i])){validation$reviews_cleanliness[i] = 0}
+}
+
+for (i in 1:length(train$reviews_checkin)){
+  if (is.na(train$reviews_checkin[i])){train$reviews_checkin[i] = 0}
+}
+for (i in 1:length(validation$reviews_checkin)){
+  if (is.na(validation$reviews_checkin[i])){validation$reviews_checkin[i] = 0}
+}
+
+for (i in 1:length(train$reviews_communication)){
+  if (is.na(train$reviews_communication[i])){train$reviews_communication[i] = 0}
+}
+for (i in 1:length(validation$reviews_communication)){
+  if (is.na(validation$reviews_communication[i])){validation$reviews_communication[i] = 0}
+}
+
+for (i in 1:length(train$reviews_location)){
+  if (is.na(train$reviews_location[i])){train$reviews_location[i] = 0}
+}
+for (i in 1:length(validation$reviews_location)){
+  if (is.na(validation$reviews_location[i])){validation$reviews_location[i] = 0}
+}
+################################################################################
 
 # Load necessary packages
 library(dplyr)
@@ -16,35 +96,6 @@ library(xgboost)
 # Convert all character variables to factors
 train <- train %>% mutate_if(is.character, as.factor)
 validation <- validation %>% mutate_if(is.character, as.factor)
-
-################################################################################
-
-# !!!
-# We still need to handle missing values for reviews
-# !!!
-
-# I made review_period 0 if there were no reviews.
-for (i in 1:5196){
-  if (is.na(preprocessed_train$review_period[i])){
-    preprocessed_train$review_period[i] = 0
-  }
-}
-# For reviews_per_month the same thing
-for (i in 1:5196){
-  if (is.na(preprocessed_train$reviews_per_month[i])){
-    preprocessed_train$review_period[i] = 0
-  }
-}
-
-# for the review scores I'm not sure what to do
-# they're not missing at random
-# there's 1290 missing values, which is a lot
-
-#for (i in 1:length(train$reviews_acc)){
-  #if (is.na(train$reviews_acc[i])){train$reviews_acc[i] = }
-#}
-
-################################################################################
 
 # Define some useful data frames
 train_normal <- select(train, -c("bc_target"))
