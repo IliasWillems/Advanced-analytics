@@ -92,6 +92,8 @@ library('corrr')
 library(ggcorrplot)
 library(class)
 library(xgboost)
+library(caret)
+library(FNN)
 
 # Convert all character variables to factors
 train <- train %>% mutate_if(is.character, as.factor)
@@ -268,10 +270,31 @@ for (i in 1:57){
 #linear regression
 # These chosen variables can be changed!!!
 lr_model_variables <- c("superhost", "zipcode_class", "booking_price_covers")
-lr_model <- lm(train$target ~ train$superhost + train$zipcode_class + train$booking_price_covers , data = train)
+lr_model <- lm(train$target ~ train$superhost + train$zipcode_class + train$booking_price_covers , data = train_normal)
 #compute rmse
-compute_RMSE_train(lr_model, lr_model_variables, pred_for_ppp = TRUE, pred_for_bc_target = FALSE)
-compute_RMSE_validation(lr_model, lr_model_variables, pred_for_ppp = TRUE, pred_for_bc_target = FALSE)
+compute_RMSE_train(lr_model, lr_model_variables, pred_for_ppp = FALSE, pred_for_bc_target = FALSE)
+compute_RMSE_validation(lr_model, lr_model_variables, pred_for_ppp = FALSE, pred_for_bc_target = FALSE)
+
+#only one variable
+lr_model_variables <- c("superhost")
+lr_model <- lm(train$target ~ train$superhost , data = train_normal)
+#compute rmse
+compute_RMSE_train(lr_model, lr_model_variables, pred_for_ppp = FALSE, pred_for_bc_target = FALSE)
+compute_RMSE_validation(lr_model, lr_model_variables, pred_for_ppp = FALSE, pred_for_bc_target = FALSE)
+
+# more variables
+lr_model_variables <- c("superhost", "zipcode_class", "booking_price_covers", "property_max_guests", "property_beds", "host_id")
+lr_model <- lm(train$target ~ train$superhost + train$zipcode_class + train$booking_price_covers + train$property_max_guests + train$property_beds + train$host_id , data = train_normal)
+#compute rmse
+compute_RMSE_train(lr_model, lr_model_variables, pred_for_ppp = FALSE, pred_for_bc_target = FALSE)
+compute_RMSE_validation(lr_model, lr_model_variables, pred_for_ppp = FALSE, pred_for_bc_target = FALSE)
+
+#linear regression with all variables
+lr_model2 <- lm(train$target ~., data = train_normal)
+lr_model2_variables <- c(1:57)
+compute_RMSE_train(lr_model2, lr_model2_variables, pred_for_ppp = FALSE, pred_for_bc_target = FALSE)
+compute_RMSE_validation(lr_model2, lr_model2_variables, pred_for_ppp = FALSE, pred_for_bc_target = FALSE)
+#result: long running time, bigger error
 
 # Ridge/Lasso
 #   - Which variables are selected?
@@ -341,7 +364,6 @@ compute_RMSE_validation(rfModel, rfModel_variables, pred_for_ppp = TRUE, pred_fo
 # Extreme Gradient Boosting: XGBoost
 # These variables can be chosen!!!!
 
-
 #XGBOOST
 # Define the features to use in the model
 features <- c("superhost", "zipcode_class", "booking_price_covers")
@@ -374,15 +396,23 @@ print(paste0("RMSE: ", RMSE))
 
 # Use clustering methods like Kmeans
 # k-nearest neighbours
-# I used 4 variables (We could change this!! We could select others!)
+# variables can be changed
 # number of neighbours k can also be changed
 
+knn_model_variables <- c(14,32,34,45,55)
 
-knn_model_variables <- c(32,34,45,55)
+knn_model <- knn.reg(train = train[, knn_model_variables], y = train$target, test = validation[,knn_model_variables], k = 100)
+
+#compute RMSE on training and validation set for knn
+sqrt(1/length(train$target) * sum((knn_model$pred - train$target)^2))
+sqrt(1/length(validation$target) * sum((knn_model$pred - validation$target)^2))
+
+#version with all variables (that are numeric)
+b<- c(1:57)
+knn_model_variables <- b[-indices_list]
 
 knn_model <- knn.reg(train = train[, knn_model_variables], y = train$target, test = validation[,knn_model_variables], k = 5)
 
-#compute RMSE on training and validation set for knn
 sqrt(1/length(train$target) * sum((knn_model$pred - train$target)^2))
 sqrt(1/length(validation$target) * sum((knn_model$pred - validation$target)^2))
 
