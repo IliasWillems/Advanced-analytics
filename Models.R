@@ -370,7 +370,7 @@ features <- c("superhost", "zipcode_class", "booking_price_covers")
 
 # Convert the training and test sets into xgb.DMatrix objects
 dtrain <- xgb.DMatrix(as.matrix(train[, features]), label = train$target)
-dtest <- xgb.DMatrix(as.matrix(test[, features]), label = test$target)
+dtest <- xgb.DMatrix(as.matrix(validation[, features]), label = validation$target)
 
 # Set the model parameters
 params <- list(
@@ -389,7 +389,7 @@ bst <- xgb.train(params, dtrain, nrounds = 500)
 predictions <- predict(bst, dtest)
 
 # Compute the RMSE
-RMSE <- sqrt(mean((predictions - test$target)^2))
+RMSE <- sqrt(mean((predictions - validation$target)^2))
 print(paste0("RMSE: ", RMSE))
 
 
