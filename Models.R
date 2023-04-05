@@ -296,6 +296,16 @@ compute_RMSE_train(lr_model2, lr_model2_variables, pred_for_ppp = FALSE, pred_fo
 compute_RMSE_validation(lr_model2, lr_model2_variables, pred_for_ppp = FALSE, pred_for_bc_target = FALSE)
 #result: long running time, bigger error
 
+#linear regression with all variables except the booking_availability and review_first, review_last
+# variables (there is a high low... version of these booking_availability variables)
+d<- c(17,18,19,20,23,24)
+train_normal_without_d <- train_normal[,-d]
+lr_model2 <- lm(train$target ~., data = train_normal_without_d)
+lr_model2_variables <- c(1:57)[-d]
+compute_RMSE_train(lr_model2, lr_model2_variables, pred_for_ppp = FALSE, pred_for_bc_target = FALSE)
+compute_RMSE_validation(lr_model2, lr_model2_variables, pred_for_ppp = FALSE, pred_for_bc_target = FALSE)
+# result: not as long. error is smaller but still bigger than with only a few variables
+
 # Ridge/Lasso
 #   - Which variables are selected?
 # Load the glmnet package
