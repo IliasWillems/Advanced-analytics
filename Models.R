@@ -5,6 +5,7 @@ rm(list = ls())
 train <- read.csv("data/preprocessed_train.csv", header=TRUE)
 validation <- read.csv("data/preprocessed_validation.csv", header=TRUE)
 
+
 # Load necessary packages
 library(dplyr)
 library(ODRF)
@@ -17,34 +18,91 @@ library(xgboost)
 train <- train %>% mutate_if(is.character, as.factor)
 validation <- validation %>% mutate_if(is.character, as.factor)
 
-################################################################################
+# If you imported the datasets by hand:
+#train <- preprocessed_train
+#validation<- preprocessed_validation
 
-# !!!
+
+################################################################################
 # We still need to handle missing values for reviews
-# !!!
+
 
 # I made review_period 0 if there were no reviews.
 for (i in 1:5196){
-  if (is.na(preprocessed_train$review_period[i])){
-    preprocessed_train$review_period[i] = 0
+  if (is.na(train$review_period[i])){
+    train$review_period[i] = 0
+  }
+}
+
+for (i in 1:1299){
+  if (is.na(validation$review_period[i])){
+    validation$review_period[i] = 0
   }
 }
 # For reviews_per_month the same thing
 for (i in 1:5196){
-  if (is.na(preprocessed_train$reviews_per_month[i])){
-    preprocessed_train$review_period[i] = 0
+  if (is.na(train$reviews_per_month[i])){
+    train$reviews_per_month[i] = 0
   }
 }
 
+for (i in 1:1299){
+  if (is.na(validation$reviews_per_month[i])){
+    validation$reviews_per_month[i] = 0
+  }
+}
 # for the review scores I'm not sure what to do
 # they're not missing at random
 # there's 1290 missing values, which is a lot
+# We also put them to 0
+# for reviews_acc, reviews_rating, reviews_cleanliness, reviews_checkin, reviews_communication, reviews_location
 
-#for (i in 1:length(train$reviews_acc)){
-  #if (is.na(train$reviews_acc[i])){train$reviews_acc[i] = }
-#}
+for (i in 1:length(train$reviews_acc)){
+  if (is.na(train$reviews_acc[i])){train$reviews_acc[i] = 0}
+}
+for (i in 1:length(validation$reviews_acc)){
+  if (is.na(validation$reviews_acc[i])){validation$reviews_acc[i] = 0}
+}
 
+for (i in 1:length(train$reviews_rating)){
+  if (is.na(train$reviews_rating[i])){train$reviews_rating[i] = 0}
+}
+for (i in 1:length(validation$reviews_rating)){
+  if (is.na(validation$reviews_rating[i])){validation$reviews_rating[i] = 0}
+}
+
+for (i in 1:length(train$reviews_cleanliness)){
+  if (is.na(train$reviews_cleanliness[i])){train$reviews_cleanliness[i] = 0}
+}
+for (i in 1:length(validation$reviews_cleanliness)){
+  if (is.na(validation$reviews_cleanliness[i])){validation$reviews_cleanliness[i] = 0}
+}
+
+for (i in 1:length(train$reviews_checkin)){
+  if (is.na(train$reviews_checkin[i])){train$reviews_checkin[i] = 0}
+}
+for (i in 1:length(validation$reviews_checkin)){
+  if (is.na(validation$reviews_checkin[i])){validation$reviews_checkin[i] = 0}
+}
+
+for (i in 1:length(train$reviews_communication)){
+  if (is.na(train$reviews_communication[i])){train$reviews_communication[i] = 0}
+}
+for (i in 1:length(validation$reviews_communication)){
+  if (is.na(validation$reviews_communication[i])){validation$reviews_communication[i] = 0}
+}
+
+for (i in 1:length(train$reviews_location)){
+  if (is.na(train$reviews_location[i])){train$reviews_location[i] = 0}
+}
+for (i in 1:length(validation$reviews_location)){
+  if (is.na(validation$reviews_location[i])){validation$reviews_location[i] = 0}
+}
 ################################################################################
+
+# Convert all character variables to factors
+train <- train %>% mutate_if(is.character, as.factor)
+validation <- validation %>% mutate_if(is.character, as.factor)
 
 # Define some useful data frames
 train_normal <- select(train, -c("bc_target"))
@@ -191,7 +249,7 @@ compute_RMSE_validation(forest, model_variables, pred_for_ppp = TRUE, pred_for_b
 #PCA -> only for numeric
 train_numerical <- train
 for (i in 1:57){
-  if  (!(is.numeric(preprocessed_train[,i]))){
+  if  (!(is.numeric(train[,i]))){
     train_numerical<- train_numerical[,-i]}
 }
 corr_matrix <- cor(train_numerical)
@@ -202,10 +260,10 @@ ggcorrplot(corr_matrix)
 # 0 if not numeric, NA if there are missing values
 correlations = rep(0,57)
 for (i in 1:57){
-  if  (is.numeric(preprocessed_train[,i])){
-    correlations[i] = cor(preprocessed_train$target,preprocessed_train[,i])}
+  if  (is.numeric(train[,i])){
+    correlations[i] = cor(train$target,train[,i])}
 }
-#colnames(preprocessed_train)
+#colnames(train)
 
 #linear regression
 # These chosen variables can be changed!!!
@@ -230,11 +288,26 @@ ridgeModel <- glmnet(x, y, alpha = 0, lambda = 0.1)
 # Print the ridge coefficients
 print(coef(ridgeModel))
 
+#example variables
+lassoModel_variables <- c("superhost", "zipcode_class", "booking_price_covers")
+
+#compute rmse
+compute_RMSE_train(ridgeModel, ridgeModel_variables, pred_for_ppp = TRUE, pred_for_bc_target = FALSE)
+compute_RMSE_validation(ridgeModel, ridgeModel_variables, pred_for_ppp = TRUE, pred_for_bc_target = FALSE)
+
+
 # Perform lasso regression
 lassoModel <- glmnet(x, y, alpha = 1, lambda = 0.1)
 
 # Print the lasso coefficients
 print(coef(lassoModel))
+
+# Example variables
+lassoModel_variables <- c("superhost", "zipcode_class", "booking_price_covers")
+
+#compute rmse
+compute_RMSE_train(lassoModel, lassoModel_variables, pred_for_ppp = TRUE, pred_for_bc_target = FALSE)
+compute_RMSE_validation(lassoModel, lassoModel_variables, pred_for_ppp = TRUE, pred_for_bc_target = FALSE)
 
 
 # (Generalized additive models)
@@ -254,11 +327,14 @@ rfModel <- randomForest(train$target ~ train$superhost + train$zipcode_class + t
 print(rfModel)
 
 # Make predictions on the test set
-predictions <- predict(rfModel, validation)
+predictions <- predict(rfModel, Xnew = validation)
 
-# Evaluate the model accuracy
-accuracy <- mean(predictions == validation$target)
-print(paste("Accuracy:", accuracy))
+# Example variables 
+rfModel_variables <- c("superhost", "zipcode_class", "booking_price_covers")
+
+#compute rmse
+compute_RMSE_train(rfModel, rfModel_variables, pred_for_ppp = TRUE, pred_for_bc_target = FALSE)
+compute_RMSE_validation(rfModel, rfModel_variables, pred_for_ppp = TRUE, pred_for_bc_target = FALSE)
 
 
 # Gradient boosting
