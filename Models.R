@@ -374,7 +374,7 @@ compute_RMSE_validation(rfModel, rfModel_variables, pred_for_ppp = TRUE, pred_fo
 # Extreme Gradient Boosting: XGBoost
 # These variables can be chosen!!!!
 
-#XGBOOST
+#XGBOOST (3 variables)
 # Define the features to use in the model
 features <- c("superhost", "zipcode_class", "booking_price_covers")
 
@@ -398,10 +398,50 @@ bst <- xgb.train(params, dtrain, nrounds = 500)
 # Make predictions on the test set
 predictions <- predict(bst, dtest)
 
-# Compute the RMSE
+#Compute the RMSE(train)
+train_predictions <- predict(bst, dtrain)
+train_RMSE <- sqrt(mean((train_predictions - train$target)^2))
+print(paste0("Train RMSE: ", train_RMSE))
+
+# Compute the RMSE(test)
 RMSE <- sqrt(mean((predictions - validation$target)^2))
 print(paste0("RMSE: ", RMSE))
 
+#2variables :
+features <- c("superhost","zipcode_class")
+dtrain <- xgb.DMatrix(as.matrix(train[, features]), label = train$target)
+dtest <- xgb.DMatrix(as.matrix(validation[, features]), label = validation$target)
+bst <- xgb.train(params, dtrain, nrounds = 500)
+predictions <- predict(bst, dtest)
+train_predictions <- predict(bst, dtrain)
+train_RMSE <- sqrt(mean((train_predictions - train$target)^2))
+print(paste0("Train RMSE: ", train_RMSE))
+RMSE <- sqrt(mean((predictions - validation$target)^2))
+print(paste0("RMSE: ", RMSE))
+
+# 1 variable :
+features <- c( "zipcode_class")
+dtrain <- xgb.DMatrix(as.matrix(train[, features]), label = train$target)
+dtest <- xgb.DMatrix(as.matrix(validation[, features]), label = validation$target)
+bst <- xgb.train(params, dtrain, nrounds = 500)
+predictions <- predict(bst, dtest)
+train_predictions <- predict(bst, dtrain)
+train_RMSE <- sqrt(mean((train_predictions - train$target)^2))
+print(paste0("Train RMSE: ", train_RMSE))
+RMSE <- sqrt(mean((predictions - validation$target)^2))
+print(paste0("RMSE: ", RMSE))
+
+#relevant variables :
+features <- c(4,5,6,7,12,13,14,15,22,25,30,31,32,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,53,54,55,56)
+dtrain <- xgb.DMatrix(as.matrix(train[, features]), label = train$target)
+dtest <- xgb.DMatrix(as.matrix(validation[, features]), label = validation$target)
+bst <- xgb.train(params, dtrain, nrounds = 500)
+predictions <- predict(bst, dtest)
+train_predictions <- predict(bst, dtrain)
+train_RMSE <- sqrt(mean((train_predictions - train$target)^2))
+print(paste0("Train RMSE: ", train_RMSE))
+RMSE <- sqrt(mean((predictions - validation$target)^2))
+print(paste0("RMSE: ", RMSE))
 
 
 # Use clustering methods like Kmeans
