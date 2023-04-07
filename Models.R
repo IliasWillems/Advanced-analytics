@@ -496,17 +496,17 @@ train_normal_normalized[,num_cols] <- (train_normal[,num_cols] - means)/sds
 
 # Create the predictor matrix
 X <- model.matrix(target ~ (property_room_type + property_max_guests + property_bathrooms +
-                    property_bedrooms + property_beds + property_bed_type +
-                    host_response_time + host_response_rate + host_nr_listings +
-                    booking_price_covers + booking_min_nights + booking_max_nights + 
-                    booking_availability_30 + booking_availability_60 + booking_availability_90 +
-                    booking_availability_365 + booking_cancel_policy + reviews_num +
-                    reviews_rating + reviews_acc + reviews_cleanliness + reviews_checkin +
-                    reviews_communication + reviews_location + reviews_per_month +
-                    zipcode_class + dist_nearest_city_center + type_class +
-                    host_location_country + host_verified_amount + years_as_host +
-                    review_period + review_period_was_missing + profile_pic +
-                    exact_location + instant_bookable + superhost + identified_host)^2,
+                              property_bedrooms + property_beds + property_bed_type +
+                              host_response_time + host_response_rate + host_nr_listings +
+                              booking_price_covers + booking_min_nights + booking_max_nights + 
+                              booking_availability_30 + booking_availability_60 + booking_availability_90 +
+                              booking_availability_365 + booking_cancel_policy + reviews_num +
+                              reviews_rating + reviews_acc + reviews_cleanliness + reviews_checkin +
+                              reviews_communication + reviews_location + reviews_per_month +
+                              zipcode_class + dist_nearest_city_center + type_class +
+                              host_location_country + host_verified_amount + years_as_host +
+                              review_period + review_period_was_missing + profile_pic +
+                              exact_location + instant_bookable + superhost + identified_host)^2,
                   data = train_normal_normalized)
 X <- X[,-1]
 
@@ -526,18 +526,18 @@ pred <- predict(lasso_reg_interactions, newx = X)
 compute_RMSE(pred, train$target)
 
 Xval <- model.matrix(target ~ (property_room_type + property_max_guests + property_bathrooms +
-                              property_bedrooms + property_beds + property_bed_type +
-                              host_response_time + host_response_rate + host_nr_listings +
-                              booking_price_covers + booking_min_nights + booking_max_nights + 
-                              booking_availability_30 + booking_availability_60 + booking_availability_90 +
-                              booking_availability_365 + booking_cancel_policy + reviews_num +
-                              reviews_rating + reviews_acc + reviews_cleanliness + reviews_checkin +
-                              reviews_communication + reviews_location + reviews_per_month +
-                              zipcode_class + dist_nearest_city_center + type_class +
-                              host_location_country + host_verified_amount + years_as_host +
-                              review_period + review_period_was_missing + profile_pic +
-                              exact_location + instant_bookable + superhost + identified_host)^2,
-                  data = validation)
+                                 property_bedrooms + property_beds + property_bed_type +
+                                 host_response_time + host_response_rate + host_nr_listings +
+                                 booking_price_covers + booking_min_nights + booking_max_nights + 
+                                 booking_availability_30 + booking_availability_60 + booking_availability_90 +
+                                 booking_availability_365 + booking_cancel_policy + reviews_num +
+                                 reviews_rating + reviews_acc + reviews_cleanliness + reviews_checkin +
+                                 reviews_communication + reviews_location + reviews_per_month +
+                                 zipcode_class + dist_nearest_city_center + type_class +
+                                 host_location_country + host_verified_amount + years_as_host +
+                                 review_period + review_period_was_missing + profile_pic +
+                                 exact_location + instant_bookable + superhost + identified_host)^2,
+                     data = validation)
 Xval <- Xval[,-1]
 
 pred <- predict(lasso_reg_interactions, newx = Xval)
@@ -595,13 +595,21 @@ for (i in 1:57){
     indices_list = append(indices_list, i)}
 }
 train_numerical <- train[,-indices_list]
+train_numerical_normalized <- as.data.frame(scale(train_numerical)) 
 
-
-corr_matrix <- cor(train_numerical)
+corr_matrix <- cor(train_numerical_normalized)
 ggcorrplot(corr_matrix)
 
 data.pca <- princomp(corr_matrix)
 summary(data.pca)
+
+# We compute the first two principal components and 
+# create a data frame with the two principal components added as variables
+pc1 <- train_numerical_normalized %*% data.pca$loadings[,1]
+pc2 <- train_numerical_normalized %*% data.pca$loadings[,2]
+train_numerical_normalized_with_pc <- train_numerical_normalized
+train_numerical_normalized_with_pc$pc1 <- pc1
+train_numerical_normalized_with_pc$pc2 <- pc2
 
 # cor
 #I'm looking at the correlations between the target and the other numeric columns
@@ -651,6 +659,12 @@ lr_model2_variables <- c(1:57)[-d]
 compute_RMSE_train(lr_model2, lr_model2_variables, pred_for_ppp = FALSE, pred_for_bc_target = FALSE)
 compute_RMSE_validation(lr_model2, lr_model2_variables, pred_for_ppp = FALSE, pred_for_bc_target = FALSE)
 # result: not as long. error is smaller but still bigger than with only a few variables
+
+#linear regression with 2 principal components
+lr_model_pca <- lm(train_numerical_normalized_with_pc$target ~ train_numerical_normalized_with_pc$pc1 + train_numerical_normalized_with_pc$pc2, data = train_numerical_normalized_with_pc[,-2])
+lr_model_variables <- c("pc1", "pc2")
+compute_RMSE_train(lr_model_pca, lr_model_variables, pred_for_ppp = FALSE, pred_for_bc_target = FALSE)
+compute_RMSE_validation(lr_model2, lr_model2_variables, pred_for_ppp = FALSE, pred_for_bc_target = FALSE)
 
 # Ridge/Lasso
 #   - Which variables are selected?
@@ -794,23 +808,25 @@ print(paste0("RMSE: ", RMSE))
 # k-nearest neighbours
 # variables can be changed
 # number of neighbours k can also be changed
+# data has to be normalized
 
-knn_model_variables <- c(14,32,34,45,55)
-
-knn_model <- knn.reg(train = train[, knn_model_variables], y = train$target, test = validation[,knn_model_variables], k = 100)
+knn_model_variables <- c(10,25,27,37,47)
+validation_numerical <- validation[,-indices_list]
+validation_numerical_normalized <- as.data.frame(scale(validation_numerical))
+knn_model <- knn.reg(train = train_numerical_normalized[, knn_model_variables], y = train_numerical_normalized$target, test = validation_numerical_normalized[,knn_model_variables], k = 100)
 
 #compute RMSE on training and validation set for knn
-sqrt(1/length(train$target) * sum((knn_model$pred - train$target)^2))
-sqrt(1/length(validation$target) * sum((knn_model$pred - validation$target)^2))
+sqrt(1/length(train$target) * sum(((knn_model$pred)*sd(train_numerical$target)+mean(train_numerical$target)) - train$target)^2)
+sqrt(1/length(validation$target) * sum(((knn_model$pred)*sd(validation_numerical$target)+mean(validation_numerical$target))- validation$target)^2)
 
 #version with all variables (that are numeric)
-b<- c(1:57)
-knn_model_variables <- b[-indices_list]
+knn_model_variables <-c(3:49)
 
-knn_model <- knn.reg(train = train[, knn_model_variables], y = train$target, test = validation[,knn_model_variables], k = 5)
+knn_model <- knn.reg(train = train_numerical_normalized[, knn_model_variables], y = train_numerical_normalized$target, test = validation_numerical_normalized[,knn_model_variables], k = 5)
 
-sqrt(1/length(train$target) * sum((knn_model$pred - train$target)^2))
-sqrt(1/length(validation$target) * sum((knn_model$pred - validation$target)^2))
+sqrt(1/length(train$target) * sum(((knn_model$pred)*sd(train_numerical$target)+mean(train_numerical$target)) - train$target)^2)
+sqrt(1/length(validation$target) * sum(((knn_model$pred)*sd(validation_numerical$target)+mean(validation_numerical$target))- validation$target)^2)
+
 
 # Make models that predict price based on different clusters of variables (like
 # property_..., host_..., booking_..., reviews_.., etc.) and then combine these
