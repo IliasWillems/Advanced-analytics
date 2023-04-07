@@ -824,3 +824,19 @@ sqrt(1/length(validation$target) * sum((knn_model$pred - validation$target)^2))
 
 # - model evaluation
 # - ensemble modelling
+
+#Stacking
+library(caretEnsemble)
+control_stacking<-trainControl(method="repeatedcv", number=5, repeats=2, savePredictions=TRUE, classProbs=TRUE)
+algorithms_to_use<- c('rf', 'glm', 'knn_model', 'bst')
+stacked_models <- caretList(approval_status ~., data=train$target, trControl=control_stacking, methodList=algorithms_to_use)
+stacking_results <- resamples(stacked_models)
+
+#Bagging
+library(dplyr)       #for data wrangling
+library(e1071)       #for calculating variable importance
+library(caret)       #for general model fitting
+library(rpart)       #for fitting decision trees
+library(ipred)       #for fitting bagged decision trees
+bag <- bagging(formula = Model ~ ., data = train, nbagg = 10,coob = TRUE,
+               control = rpart.control(minsplit = 2, cp = 0))
