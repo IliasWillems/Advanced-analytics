@@ -816,18 +816,16 @@ validation_numerical_normalized <- as.data.frame(scale(validation_numerical))
 knn_model <- knn.reg(train = train_numerical_normalized[, knn_model_variables], y = train_numerical_normalized$target, test = validation_numerical_normalized[,knn_model_variables], k = 100)
 
 #compute RMSE on training and validation set for knn
-# to denormalize we use the mean and sd of the training set
-sqrt(1/length(train$target) * sum(((knn_model$pred)*sd(train_numerical$target)+mean(train_numerical$target)) - train$target)^2)
-sqrt(1/length(validation$target) * sum(((knn_model$pred)*sd(train_numerical$target)+mean(train_numerical$target))- validation$target)^2)
+sqrt(mean(((knn_model$pred * sd(train_numerical$target))+mean(train_numerical$target) - train$target)^2))
+sqrt(mean(((knn_model$pred*sd(train_numerical$target))+mean(train_numerical$target)- validation$target)^2))
 
 #version with all variables (that are numeric)
 knn_model_variables <-c(3:49)
 
 knn_model <- knn.reg(train = train_numerical_normalized[, knn_model_variables], y = train_numerical_normalized$target, test = validation_numerical_normalized[,knn_model_variables], k = 3)
 
-sqrt(1/length(train$target) * sum(((knn_model$pred)*sd(train_numerical$target)+mean(train_numerical$target)) - train$target)^2)
-sqrt(1/length(validation$target) * sum(((knn_model$pred)*sd(train_numerical$target)+mean(train_numerical$target))- validation$target)^2)
-
+sqrt(mean(((knn_model$pred * sd(train_numerical$target))+mean(train_numerical$target) - train$target)^2))
+sqrt(mean(((knn_model$pred*sd(train_numerical$target))+mean(train_numerical$target)- validation$target)^2))
 
 # Make models that predict price based on different clusters of variables (like
 # property_..., host_..., booking_..., reviews_.., etc.) and then combine these
