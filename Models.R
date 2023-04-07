@@ -351,17 +351,17 @@ forest2 <- randomForest(target ~ property_room_type + property_max_guests + prop
 
 # Put all variables used in the model in a vector
 model_variables <- c("property_room_type", "property_max_guests", "property_bathrooms", 
-                       "property_bedrooms", "property_beds", "property_bed_type", 
-                       "host_response_time", "host_response_rate", "host_nr_listings", 
-                       "booking_price_covers", "booking_min_nights", "booking_max_nights",  
-                       "booking_availability_30", "booking_availability_60", "booking_availability_90", 
-                       "booking_availability_365", "booking_cancel_policy", "reviews_num", 
-                       "reviews_rating", "reviews_acc", "reviews_cleanliness", "reviews_checkin", 
-                       "reviews_communication", "reviews_location", "reviews_per_month",
-                       "zipcode_class", "dist_nearest_city_center", "type_class", 
-                       "host_location_country", "host_verified_amount", "years_as_host", 
-                       "review_period", "review_period_was_missing", "profile_pic", 
-                       "exact_location", "instant_bookable", "superhost", "identified_host")
+                     "property_bedrooms", "property_beds", "property_bed_type", 
+                     "host_response_time", "host_response_rate", "host_nr_listings", 
+                     "booking_price_covers", "booking_min_nights", "booking_max_nights",  
+                     "booking_availability_30", "booking_availability_60", "booking_availability_90", 
+                     "booking_availability_365", "booking_cancel_policy", "reviews_num", 
+                     "reviews_rating", "reviews_acc", "reviews_cleanliness", "reviews_checkin", 
+                     "reviews_communication", "reviews_location", "reviews_per_month",
+                     "zipcode_class", "dist_nearest_city_center", "type_class", 
+                     "host_location_country", "host_verified_amount", "years_as_host", 
+                     "review_period", "review_period_was_missing", "profile_pic", 
+                     "exact_location", "instant_bookable", "superhost", "identified_host")
 
 # RMSE on training set
 compute_RMSE_train(forest2, model_variables, pred_for_ppp = FALSE, pred_for_bc_target = FALSE)
@@ -816,16 +816,17 @@ validation_numerical_normalized <- as.data.frame(scale(validation_numerical))
 knn_model <- knn.reg(train = train_numerical_normalized[, knn_model_variables], y = train_numerical_normalized$target, test = validation_numerical_normalized[,knn_model_variables], k = 100)
 
 #compute RMSE on training and validation set for knn
+# to denormalize we use the mean and sd of the training set
 sqrt(1/length(train$target) * sum(((knn_model$pred)*sd(train_numerical$target)+mean(train_numerical$target)) - train$target)^2)
-sqrt(1/length(validation$target) * sum(((knn_model$pred)*sd(validation_numerical$target)+mean(validation_numerical$target))- validation$target)^2)
+sqrt(1/length(validation$target) * sum(((knn_model$pred)*sd(train_numerical$target)+mean(train_numerical$target))- validation$target)^2)
 
 #version with all variables (that are numeric)
 knn_model_variables <-c(3:49)
 
-knn_model <- knn.reg(train = train_numerical_normalized[, knn_model_variables], y = train_numerical_normalized$target, test = validation_numerical_normalized[,knn_model_variables], k = 5)
+knn_model <- knn.reg(train = train_numerical_normalized[, knn_model_variables], y = train_numerical_normalized$target, test = validation_numerical_normalized[,knn_model_variables], k = 3)
 
 sqrt(1/length(train$target) * sum(((knn_model$pred)*sd(train_numerical$target)+mean(train_numerical$target)) - train$target)^2)
-sqrt(1/length(validation$target) * sum(((knn_model$pred)*sd(validation_numerical$target)+mean(validation_numerical$target))- validation$target)^2)
+sqrt(1/length(validation$target) * sum(((knn_model$pred)*sd(train_numerical$target)+mean(train_numerical$target))- validation$target)^2)
 
 
 # Make models that predict price based on different clusters of variables (like
