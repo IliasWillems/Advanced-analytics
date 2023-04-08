@@ -820,7 +820,10 @@ sqrt(1/length(validation$target) * sum((knn_model$pred - validation$target)^2))
 
 # Some other things to do:
 
-# - Think about more models? :)
+# model evaluation
+#   - Plot predicted y against true y
+#   - Regression error characteristic
+#   - Feature importance plots
 
-# - model evaluation
+
 # - ensemble modelling

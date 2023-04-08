@@ -385,7 +385,6 @@ head(train[,c("host_response_rate", "host_location", "host_response_time",
 # it down to just country of origin.
 unique(train$host_location)
 
-host_location_country <- lapply(train$host_location, get_host_country)
 host_location_country <- unlist(lapply(train$host_location, get_host_country))
 host_location_country[which(host_location_country %in% c("Belgie", "belgium", "belgique", "Belgique", "belgie", "Belgium"))] <- "BE"
 host_location_country[which(host_location_country %in% c("France"))] <- "FR"
