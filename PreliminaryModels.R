@@ -13,6 +13,7 @@ library(rpart)
 library(rpart.plot)
 library(dplyr)
 library(ggplot2)
+library(stringr)
 
 source("Useful functions.R")
 
@@ -385,15 +386,21 @@ head(train[,c("host_response_rate", "host_location", "host_response_time",
 # it down to just country of origin.
 unique(train$host_location)
 
-host_location_country <- unlist(lapply(train$host_location, get_host_country))
+# host_location_country <- unlist(lapply(train$host_location, get_host_country))
+
+# Split strings by commas
+split_data <- str_split(train$host_location, ",")
+
+# Extract last element as country information
+host_location_country <- sapply(split_data, function(x) trimws(x[length(x)]))
+
 host_location_country[which(host_location_country %in% c("Belgie", "belgium", "belgique", "Belgique", "belgie", "Belgium"))] <- "BE"
 host_location_country[which(host_location_country %in% c("France"))] <- "FR"
 host_location_country[which(host_location_country %in% c("Netherlands", "The Netherlands", "Nederland"))] <- "NL"
 host_location_country[which(!(host_location_country %in% c("BE", "NL", "FR")))] <- "other"
-train$host_location_country <- host_location_country
+train$host_location <- host_location_country
 
 features <- c(features, "host_location_country")
-
 #
 # host_nr_listings
 #
