@@ -1,0 +1,17 @@
+Model performances on test set:
+
+imp_test_pred1 = 47.279
+imp_test_pred2 = 47.253
+
+imp2_test_pred1= 47.18
+imp2_test_pred2 = 47.253
+
+ext_test_pred1 = 47.114
+ext_test_pred2 = 47.252
+
+mp_test_pred1 = 47.11
+mp_test_pred2 = 46.996
+
+test_pred_step (no transformation) = 46.907
+test_pred_step (transformation) = 46.907
+simple_model_pred = 46.718

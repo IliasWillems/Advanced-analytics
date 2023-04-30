@@ -1,5 +1,194 @@
 # This script contains the functions used in the data preprocessing scripts.
 
+#### Text mining functions ####
+
+# Verwijder alle leestekens in een textje
+remove_punctuation <- function (string) {
+  gsub('[[:punct:] ]+',' ', string)
+}
+
+# Verander alle hoofdletters in kleine letters
+set_lower_case <- function(string) {
+  tolower(string)
+}
+
+# Splits een tekst op in de verschillende woorden. De waarde die deze functie
+# terug geeft is bijgevolg een vector met daarin alle woorden van het tekstje
+# dat je aan deze functie hebt gegeven.
+get_words <- function(string) {
+  strsplit(string, ' ')
+}
+
+# Verwijder alle spaties aan het begin of het einde van de woorden in de woord-
+# vector die je hebt gekregen door "get_words" toe te passen (Het kan
+# voorkomen dat er een woord " huis  " in de lijst zit).
+trim_exces_whitespace <- function(word_vec) {
+  unlist(lapply(word_vec, trimws))
+}
+
+# Verwijder alle 'lege woorden'. Dit wil zeggen: alle woorden van de vorm "".
+remove_empty_words <- function(word_vec) {
+  word_vec[which(nchar(word_vec) > 0)]
+}
+
+# Verwijder alle stopwoorden. Het heeft immers geen zin om te proberen bepalen
+# of woorden zoals "hij", "ben", "soms", etc. informatief zijn. We weten al op
+# voorhand dat dat niet zo is.
+remove_unnessecary_words <- function(word_vec) {
+  stopword_idx <- which(word_vec %in% stopwords("french") | word_vec %in% stopwords("dutch") | word_vec %in% stopwords("english"))
+  
+  word_vec[-stopword_idx]
+}
+
+# Maak woordenschat voor een bepaalde textuele variabele. Met 'de woordenschat'
+# bedoelen we dat we een lijst van alle nuttige woorden maken die in de tekstjes
+# van de variabele voorkomen en deze een score geven naargelang de prijs van het
+# bijhorende eigendom.
+get_vocabulary <- function(text_variable_colname) {
+  
+  vocabulary <- data.frame("word" = character(), "value" = numeric(),
+                           "occurrence" = numeric())
+  
+  for (i in 1:nrow(train)) { # Deze for-loopt duurt wel een aantal minuutjes...
+    
+    if (i %% 1000 == 0) {
+      message(round(i/nrow(train)*100, 2), "% completion of vocabulary")
+    }
+    
+    summary <- train[i, text_variable_colname]
+    
+    summary <- remove_punctuation(summary)
+    summary <- set_lower_case(summary)
+    words <- get_words(summary)
+    words <- trim_exces_whitespace(words)
+    words <- remove_empty_words(words)
+    words <- remove_unnessecary_words(words)
+    
+    for (word in words) {
+      if (word %in% vocabulary$word) {
+        word_idx <- which(vocabulary$word == word)
+        vocabulary[word_idx, "value"] <- vocabulary[word_idx, "value"] + train[i, "target"]/train[i, "booking_price_covers"]
+        vocabulary[word_idx, "occurrence"] <- vocabulary[word_idx, "occurrence"] + 1
+      } else {
+        vocabulary <- rbind(vocabulary, data.frame("word" = word,
+                                                   "value" = train[i, "target"]/train[i, "booking_price_covers"],
+                                                   "occurrence" = 1))
+      }
+    }
+  }
+  
+  # Gemiddelde prijs van huizen waarvan een gegeven woord in de beschrijving staat.
+  vocabulary$word_mean_value <- vocabulary$value/vocabulary$occurrence
+  
+  return(vocabulary)
+}
+
+# Nadat we de score van elk woord hebben berekend kunnen we de score van een
+# tekst berekenen. Dit doen we door het aantal woorden te tellen in die tekst
+# dat in de top 'score_threshold' van hoogst scorende woorden zit.
+# Zonder meer zou dit een voordeel geven aan de langere teksten. We delen daarom
+# door log(n) om dit in rekening te nemen
+get_summary_score <- function(summary, vocabulary, score_threshold) {
+  quartile_th <- quantile(vocabulary$word_score, score_threshold)
+  
+  summary <- remove_punctuation(summary)
+  summary <- set_lower_case(summary)
+  words <- get_words(summary)
+  words <- trim_exces_whitespace(words)
+  words <- remove_empty_words(words)
+  words <- remove_unnessecary_words(words)
+  
+  score <- 0
+  for (word in words) {
+    if (word %in% vocabulary$word) {
+      word_score <- vocabulary[which(vocabulary$word == word), "word_score"]
+      if (word_score > quartile_th) {
+        score <- score + 1
+      }
+    }
+  }
+  
+  return(score)
+}
+
+get_summary_score_2 <- function(summary, high_price_indicative_words) {
+  summary <- remove_punctuation(summary)
+  summary <- set_lower_case(summary)
+  words <- get_words(summary)
+  words <- trim_exces_whitespace(words)
+  words <- remove_empty_words(words)
+  words <- remove_unnessecary_words(words)
+  
+  score <- 0
+  for (word in words) {
+    if (word %in% high_price_indicative_words) {
+      score <- score + 1
+    }
+  }
+  
+  return(score)
+}
+
+get_summary_score_3 <- function(dataset, words_high, words_low, summary_list) {
+  summary_score <- rep(0, nrow(dataset))
+  
+  for (i in 1:nrow(dataset)) {
+    if (i %% 1000 == 0) {
+      message(round(i/nrow(dataset)*100, 2), "% of scores obtained")
+    }
+    
+    score <- 0
+    for (text_variable_colname in summary_list) {
+      summary <- dataset[i, text_variable_colname]
+      
+      summary <- remove_punctuation(summary)
+      summary <- set_lower_case(summary)
+      words <- get_words(summary)
+      words <- trim_exces_whitespace(words)
+      
+      score <- score + (length(which(important_words_high %in% words)) - length(which(important_words_low %in% words)))
+    }
+    
+    summary_score[i] <- score
+  }
+  return(summary_score)
+}
+
+get_important_word_ohe <- function(summary, important_words) {
+  ohe <- matrix(rep(0, length(important_words)), nrow = 1)
+  colnames(ohe) <- important_words
+  for (word in important_words) {
+    if (str_detect(summary, word)) {
+      ohe[1, "word"] <- 1
+    }
+  }
+  
+  as.data.frame(ohe)
+}
+
+get_property_square_feet <- function(dataset) {
+  
+  property_sq_feet <- rep(0, nrow(dataset))
+  for (i in 1:nrow(dataset)) {
+    hits_desc <- str_extract_all(dataset[i, "property_desc"], regex("[0-9]+[ ]*+m2"))[[1]]
+    hits_space <- str_extract_all(dataset[i, "property_space"], regex("[0-9]+[ ]*+m2"))[[1]]
+    hits_sum <- str_extract_all(dataset[i, "property_summary"], regex("[0-9]+[ ]*+m2"))[[1]]
+    
+    hits_both <- union(union(hits_desc, hits_space), hits_sum)
+    
+    hits_both <- as.integer(gsub("m2", "", hits_both))
+    
+    if (length(hits_both) != 0) {
+      property_sq_feet[i] <- sum(hits_both)
+    }
+  }
+  
+  return(property_sq_feet)
+}
+
+
+#### Other data preprocessing functions ####
+
 get_host_country <- function(x) {
   if (x == "") {
     "Other"
@@ -38,6 +227,11 @@ preprocess_data <- function(dataset, trainset, params_and_models, outfile) {
   mean_reviews_value <- params_and_models[[16]]
   mean_reviews_rating <- params_and_models[[17]]
   keep <- params_and_models[[18]]
+  selected_amenities <- params_and_models[[19]]
+  summary_list <- params_and_models[[20]]
+  important_words_high <- params_and_models[[21]]
+  important_words_low <- params_and_models[[22]]
+    
   
   #
   # Target
@@ -139,6 +333,62 @@ preprocess_data <- function(dataset, trainset, params_and_models, outfile) {
   dataset[which(is.na(dataset$property_beds)), "property_beds"] <- median_beds
   
   #
+  # property_last_updated
+  #
+  
+  property_last_updated_numerical <- rep(0, nrow(dataset))
+  for (i in 1:nrow(dataset)) {
+    components <- unlist(strsplit(dataset[i, "property_last_updated"], split = " "))
+    
+    if (length(components) == 3) {
+      multiplier <- 1
+      if (components[2] == "months" | components[2] == "month") {
+        multiplier <- 31
+      } else if (components[2] == "weeks" | components[2] == "week") {
+        multiplier <- 7
+      } else {
+        multiplier <- 365
+      }
+      
+      if (components[1] == "a") {
+        number <- 1
+      } else {
+        number <- as.numeric(components[1])
+      }
+      
+      property_last_updated_numerical[i] <- multiplier*number
+      
+    } else if (components[1] == "today") {
+      property_last_updated_numerical[i] <- 0
+    } else if (components[1] == "yesterday") {
+      property_last_updated_numerical[i] <- 1
+    } else { # never
+      property_last_updated_numerical[i] <- NA
+    }
+  }
+  
+  property_last_updated_numerical[which(is.na(property_last_updated_numerical))] <- median(property_last_updated_numerical, na.rm = TRUE)
+  dataset$property_last_updated_numerical <- property_last_updated_numerical
+  
+  #
+  # property_amenities
+  #
+  
+  amenity_data <- data.frame(dummy = rep(0, nrow(dataset)))
+  
+  for (amenity in selected_amenities) {
+    amenity_data[,amenity] <- rep(0, nrow(dataset))
+    for (i in 1:nrow(dataset)) {
+      if (amenity %in% unlist(strsplit(dataset[i, "property_amenities"], ", "))) {
+        amenity_data[i, amenity] <- 1
+      }
+    }
+  }
+  
+  amenity_data <- amenity_data[,-1]
+  dataset <- cbind(dataset, amenity_data)
+  
+  #
   # host_location
   #
   
@@ -154,7 +404,7 @@ preprocess_data <- function(dataset, trainset, params_and_models, outfile) {
   #
   
   dataset[which(is.na(dataset$host_nr_listings)), "host_nr_listings"] <- median_host_nr_listings
-  dataset <- select(dataset, -c("host_nr_listings_total"))
+  dataset <- dplyr::select(dataset, -c("host_nr_listings_total"))
   
   #
   # host_verified
@@ -340,7 +590,21 @@ preprocess_data <- function(dataset, trainset, params_and_models, outfile) {
   if (!("target" %in% colnames(dataset))) {
     keep <- keep[-c(1, 2)]
   }
-  dataset_preprocessed <- select(dataset, all_of(keep))
+  
+  #
+  # property_summary, property_space, property_desc, property_neighbourhood,
+  # property_notes, property_transit, property_access, property_interaction,
+  # property_rules
+  #
+  
+  dataset$summary_score <- get_summary_score_3(dataset, important_words_high, important_words_low, summary_list)
+  
+  features <- c(features, "summary_score")
+  
+  # Also keep id column (necessary to identify predictions)
+  keep <- c("property_id", keep)
+  
+  dataset_preprocessed <- dplyr::select(dataset, all_of(keep))
   
   colSums(is.na(dataset_preprocessed))
   
@@ -348,3 +612,4 @@ preprocess_data <- function(dataset, trainset, params_and_models, outfile) {
   write.csv(dataset_preprocessed, paste0("data/", outfile, ".csv"),
             row.names = FALSE)
 }
+

@@ -97,6 +97,7 @@ missing_zip_idx <- which(train$property_zipcode == "")
 
 # Save info that zip code wass initially missing
 train$property_zip_missing <- as.numeric(train$property_zipcode == "")
+features <- c(features, "property_zip_missing")
   # How could we impute these?
   # 1) Search for clues in the description, neighbourhood, etc. columns
   # 2) Look at latitude and longitude values and find nearest neighbours <--
@@ -181,7 +182,7 @@ if (!do_reg_tree) {
   
 } else {
   
-  tree_zipcode <- rpart(price ~ zipcode, data = zipcode_data, control=rpart.control(cp=.00001))
+  tree_zipcode <- rpart(target ~ property_zipcode, data = train, control=rpart.control(cp=.00001))
   printcp(tree_zipcode)
   
   #plot the pruned tree
@@ -295,7 +296,7 @@ if (!do_reg_tree) {
   
 } else {
   
-  tree_prop_type <- rpart(price ~ type, data = type_data, control=rpart.control(cp=.00001))
+  tree_prop_type <- rpart(target ~ property_type, data = train, control=rpart.control(cp=.00001))
   printcp(tree_prop_type)
   
   #plot the pruned tree
@@ -398,9 +399,10 @@ host_location_country[which(host_location_country %in% c("Belgie", "belgium", "b
 host_location_country[which(host_location_country %in% c("France"))] <- "FR"
 host_location_country[which(host_location_country %in% c("Netherlands", "The Netherlands", "Nederland"))] <- "NL"
 host_location_country[which(!(host_location_country %in% c("BE", "NL", "FR")))] <- "other"
-train$host_location <- host_location_country
+train$host_location_country <- host_location_country
 
 features <- c(features, "host_location_country")
+
 #
 # host_nr_listings
 #
@@ -478,7 +480,7 @@ if (use_new_model) {
   
 } else {
   # Build a linear regression model to predict response rate from other properties
-  model_response_rate <- lm(host_response_rate ~ host_location + host_response_time + 
+  model_response_rate <- lm(host_response_rate ~ host_location_country + host_response_time + 
                             host_nr_listings + host_verified + host_since, data = train)
   
   # for example make predictions for new data based on the trained model
@@ -686,9 +688,9 @@ train$review_period_was_missing <- as.numeric(is.na(train$review_period))
 
 features <- c(features, c("review_period", "review_period_was_missing"))
 
-#I want to check if the 1290  missing values are the 0 values for reviews_num
+#I want to check if the 1030  missing values are the 0 values for reviews_num
 length(train$reviews_num[which(train$reviews_num==0)])
-# yes. There are 1290 instances with no review information.This also gives us information about
+# yes. There are 1030 instances with no review information.This also gives us information about
 # the airbnb (because there are no reviews) -> not random 
 # keep the separate missing value indicator feature
 
@@ -712,6 +714,9 @@ boxplot(bc_reviews_per_month)
 # reviews_acc, reviews_cleanliness, reviews_checkin, reviews_communication, reviews_location, reviews_value
 # reviews_rating
 #
+
+# Check for missing values
+sum(is.na(train$reviews_rating))
 
 mean_reviews_acc <- mean(train$reviews_acc,na.rm=TRUE)
 mean_reviews_cleanliness <- mean(train$reviews_cleanliness,na.rm=TRUE)
@@ -825,7 +830,7 @@ targets <- c("target", "bc_target")
 # "property_scraped_at"        "host_about"                 "extra"
 # "host_since"                 "host_location"              "host_verified"
 
-features_to_keep <- c("property_room_type",
+features_to_keep <- c("property_room_type", 
                       "property_max_guests","property_bathrooms", "property_bedrooms",
                       "property_beds", "property_bed_type", "property_last_updated",
                       "host_id", "host_response_time",

@@ -4,149 +4,126 @@ rm(list = ls())
 
 # Load in data
 train <- read.csv("data/train.csv", header=TRUE)
+set.seed(123456)
+train_size <- floor(0.80*nrow(train))
+train_idx <- sample(1:nrow(train), train_size, replace = FALSE)
+train <- train[train_idx, ]
+validation <- train[-train_idx, ]
 
 # Load packages
 library(stopwords)
+library(stringr)
 
 # Some useful functions
-
-# Verwijder alle leestekens in een textje
-remove_punctuation <- function (string) {
-  gsub('[[:punct:] ]+',' ', string)
-}
-
-# Verander alle hoofdletters in kleine letters
-set_lower_case <- function(string) {
-  tolower(string)
-}
-
-# Splits een tekst op in de verschillende woorden. De waarde die deze functie
-# terug geeft is bijgevolg een vector met daarin alle woorden van het tekstje
-# dat je aan deze functie hebt gegeven.
-get_words <- function(string) {
-  strsplit(string, ' ')
-}
-
-# Verwijder alle spaties aan het begin of het einde van de woorden in de woord-
-# vector die je hebt gekregen door "get_words" toe te passen (Het kan
-# voorkomen dat er een woord " huis  " in de lijst zit).
-trim_exces_whitespace <- function(word_vec) {
-  unlist(lapply(word_vec, trimws))
-}
-
-# Verwijder alle 'lege woorden'. Dit wil zeggen: alle woorden van de vorm "".
-remove_empty_words <- function(word_vec) {
-  word_vec[which(nchar(word_vec) > 0)]
-}
-
-# Verwijder alle stopwoorden. Het heeft immers geen zin om te proberen bepalen
-# of woorden zoals "hij", "ben", "soms", etc. informatief zijn. We weten al op
-# voorhand dat dat niet zo is.
-remove_unnessecary_words <- function(word_vec) {
-  stopword_idx <- which(word_vec %in% stopwords("french") | word_vec %in% stopwords("dutch") | word_vec %in% stopwords("english"))
-  
-  word_vec[-stopword_idx]
-}
-
-# Nadat we de score van elk woord hebben berekend kunnen we de score van een
-# tekst berekenen. Dit doen we door het aantal woorden te tellen in die tekst
-# dat in de top 'score_threshold' van hoogst scorende woorden zit.
-# Zonder meer zou dit een voordeel geven aan de langere teksten. We delen daarom
-# door log(n) om dit in rekening te nemen
-get_summary_score <- function(summary, vocabulary, score_threshold) {
-  quartile_th <- quantile(vocabulary$word_score, score_threshold)
-  
-  summary <- remove_punctuation(summary)
-  summary <- set_lower_case(summary)
-  words <- get_words(summary)
-  words <- trim_exces_whitespace(words)
-  words <- remove_empty_words(words)
-  words <- remove_unnessecary_words(words)
-  
-  score <- 0
-  for (word in words) {
-    if (word %in% vocabulary$word) {
-      word_score <- vocabulary[which(vocabulary$word == word), "word_score"]
-      if (word_score > quartile_th) {
-        score <- score + 1
-      }
-    }
-  }
-  
-  return(score/log(length(words)))
-}
-
-get_summary_score_2 <- function(summary, high_price_indicative_words) {
-  summary <- remove_punctuation(summary)
-  summary <- set_lower_case(summary)
-  words <- get_words(summary)
-  words <- trim_exces_whitespace(words)
-  words <- remove_empty_words(words)
-  words <- remove_unnessecary_words(words)
-  
-  score <- 0
-  for (word in words) {
-    if (word %in% high_price_indicative_words) {
-      score <- score + 1
-    }
-  }
-  
-  return(score)
-}
-
+source("Useful functions2.R")
+ 
 ################################################################################
 
 # Maak de woordenschat
 
-vocabulary <- data.frame("word" = character(), "value" = numeric(),
-                         "occurrence" = numeric())
+summary_vocabulary <- get_vocabulary("property_summary")
+space_vocabulary <- get_vocabulary("property_space")
+desc_vocabulary <- get_vocabulary("property_desc")
+neighbourhood_vocabulary <- get_vocabulary("property_neighbourhood")
+notes_vocabulary <- get_vocabulary("property_notes")
+transit_vocabulary <- get_vocabulary("property_transit")
+access_vocabulary <- get_vocabulary("property_access")
+interaction_vocabulary <- get_vocabulary("property_interaction")
+rules_vocabulary <- get_vocabulary("property_rules")
 
-for (i in 1:nrow(train)) { # Deze for-loopt duurt wel een aantal minuutjes...
+vocabulary_list <- list(summary_vocabulary,
+                        space_vocabulary,
+                        desc_vocabulary,
+                        neighbourhood_vocabulary,
+                        notes_vocabulary,
+                        transit_vocabulary,
+                        access_vocabulary,
+                        interaction_vocabulary,
+                        rules_vocabulary)
+
+vocabulary_names <- c("summary_vocabulary", "space_vocabulary", "desc_vocabulary",
+                      "neighbourhood_vocabulary", "notes_vocabulary", "transit_vocabulary",
+                      "access_vocabulary", "interaction_vocabulary", "rules_vocabulary")
+
+
+################################################################################
+
+# Misschien is het geen goed idee om een hele tekst samen te vatten in een getal.
+# Het kan een idee zijn om te kijken naar de 10 belangrijkste woorden om een
+# hoge prijs te voorspellen en de 10 belangrijkste woorden om een lage prijs te
+# voorspellen en deze op te slagen.
+
+# Om meer robuuste resultaten te bekomen zullen we ook eisen dat de geselecteerde
+# woorden minstens een bepaald aantal keer voorkomen in de training data.
+
+get_important_words <- function(vocabulary, co_high, co_low, co_occ) {
+  important_words_high <- vocabulary[which(vocabulary[, "word_mean_value"] > co_high & vocabulary[,"occurrence"] > co_occ), "word"]
+  important_words_low <- vocabulary[which(vocabulary[, "word_mean_value"] < co_low & vocabulary[,"occurrence"] > co_occ), "word"]
   
-  if (i %% 1000 == 0) {
-    message(round(i/nrow(train)*100, 2), "% completion of vocabulary")
-  }
-  
-  summary <- train[i, "property_summary"]
-  
-  summary <- remove_punctuation(summary)
-  summary <- set_lower_case(summary)
-  words <- get_words(summary)
-  words <- trim_exces_whitespace(words)
-  words <- remove_empty_words(words)
-  words <- remove_unnessecary_words(words)
-  
-  for (word in words) {
-    if (word %in% vocabulary$word) {
-      word_idx <- which(vocabulary$word == word)
-      vocabulary[word_idx, "value"] <- vocabulary[word_idx, "value"] + train[i, "target"]/train[i, "booking_price_covers"]
-      vocabulary[word_idx, "occurrence"] <- vocabulary[word_idx, "occurrence"] + 1
-    } else {
-      vocabulary <- rbind(vocabulary, data.frame("word" = word,
-                                                 "value" = train[i, "target"]/train[i, "booking_price_covers"],
-                                                 "occurrence" = 1))
-    }
-  }
+  list("high" = important_words_high, "low" = important_words_low)
 }
 
-# Gemiddelde prijs van huizen waarvan een gegeven woord in de beschrijving staat.
-vocabulary$word_mean_value <- vocabulary$value/vocabulary$occurrence
+IMPORTANCE_CUTOFF_HIGH <- 70
+IMPORTANCE_CUTOFF_LOW <- 35
+OCCURENCE_CUTOFF <- 30
 
-# We definiëren de woordscore als "word_mean_value" x log(occurrence). Door
-# vermenigvuldiging met log(occurrence) kunnen we ervoor zorgen dat de score
-# van woorden die maar 1 keer voorkomen (outliers) gelijk is aan 0 en dat de
-# score van een woord in steeds mindere maten toeneemt naarmate dat woord meer
-# en meer voorkomt. Dit effect wordt afgekapt vanaf 100.
-vocabulary$word_score <- vocabulary$word_mean_value*pmin(log(vocabulary$occurrence), log(100))
-head(vocabulary[sort(vocabulary$word_score, index.return = TRUE, decreasing = TRUE)[[2]], ], 20)
+for (i in 1:length(vocabulary_names)) {
+  voc <- vocabulary_list[[i]]
+  out <- get_important_words(voc, IMPORTANCE_CUTOFF_HIGH, IMPORTANCE_CUTOFF_LOW, OCCURENCE_CUTOFF)
+  message("\n", vocabulary_names[i])
+  print( paste0("high: ", paste(out[[1]], sep = ", ")) )
+  print( paste0("low: ", paste(out[[2]], sep = ", ")) )
+}
 
-# Een iets andere, meer directe aanpak: selecteer de woorden die in de
-# beschrijvingen staan van eigendommen die hoog geprijsd zijn. Om deze aanpak
-# toch enigzins robuust te maken vereisen we ook dat dit in meer dan 3 gevallen
-# voorkomt.
-IMPORTANCE_CUTOFF <- 150
-vocabulary[which(vocabulary$word_mean_value > IMPORTANCE_CUTOFF & vocabulary$occurrence > 3), "word"]
+# Dit geeft een hele lijst woorden. Veel ervan houden niet echt veel steek om
+# gerelateerd te kunnen worden aan hoge of lage prijzen van een qualitatief
+# standpunt en worden daarom ook genegeerd. Enkele schijnbaar nuttige woorden
+# zijn:
 
+# Voor hoge prijzen:
+#   summary: gelegen, vlakbij, plenty, hip, deco (wellicht verwijzing naar "art
+#            deco"), outside, whole, second (wellicht verwijzend naar een tweede
+#            badkamer, terras, etc.),
+#
+#   space: hallway (indicatief voor een groot eigendom?), linens, en eigenlijk
+#          ook gewoon al de rest van de opgelijste woorden.
+#
+#   desc: vlakbij, won (eventueel een of andere award gewonnen), alone, working,
+#         forã (verwijzend naar 'foret' = bos?), hip, another (verwijzend naar
+#         een tweede badkamer, terras, etc.), soleil, 3th (verwijzend naar ...),
+#         terras, twin, groenplaats (hippe buurt in antwerpen?), ...
+#
+#   transit: stib (verwwijzend naar de metro in brussel), brussel, yser
+#
+#   interaction: local, bien
+
+# Voor lage prijzen:
+#   space: smartflats (kleine ruimte), upon (verwijzend naar iets dat de
+#          bezoeker moet doen als die aankomt?)
+#
+#   desc: smartflats, emergencies, urgent
+#
+#   notes: All of them?
+#
+#   Access: contact ( --> upon arrival, the host needs to be contacted?)
+#
+#   Interaction: Emergencies, urgent
+#
+#   Rules: service, prepare, caution
+
+################################################################################
+
+# Is het mogelijk om property_sqfeet ad te leiden uit de tekstjes?
+
+train$my_prop_sq_feet <- get_property_square_feet(train)
+
+sqfeet_not_missing_idx <- which(!is.na(train$property_sqfeet))
+train[sqfeet_not_missing_idx, c("my_prop_sq_feet", "property_sqfeet")]
+
+# Dit lijkt niet te werken
+
+
+# Deze stukjes code worden niet meer gebruikt
 
 ################################################################################
 
@@ -160,7 +137,7 @@ for (i in 1:nrow(train)) {
     message(round(i/nrow(train)*100, 2), "% completion of score calculations")
   }
   train[i, "summary_score"] <- get_summary_score(train[i, "property_summary"],
-                                                 vocabulary,
+                                                 summary_vocabulary,
                                                  score_threshold)
 }
 
@@ -170,7 +147,7 @@ plot(train$summary_score, log(train$target))
 ################################################################################
 
 IMPORTANCE_CUTOFF <- 90
-high_price_indicative_words <- vocabulary[which(vocabulary$word_mean_value > IMPORTANCE_CUTOFF & vocabulary$occurrence > 10), "word"]
+high_price_indicative_words <- summary_vocabulary[which(summary_vocabulary$word_mean_value > IMPORTANCE_CUTOFF & summary_vocabulary$occurrence > 10), "word"]
 high_price_indicative_words
 
 train$summary_score_2 <- rep(0, nrow(train))

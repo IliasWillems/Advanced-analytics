@@ -1,0 +1,2 @@
+"eta","gamma","max_depth","subsample","colsample_bytree","nrounds"
+0.05,500,6,0.5,0.1,68

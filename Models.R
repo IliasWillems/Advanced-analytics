@@ -304,6 +304,7 @@ compute_RMSE_validation_glmnet <- function(model, model_variables, pred_for_ppp,
 
 mean_target <- mean(train$target)
 compute_RMSE(rep(mean_target, length(train$target)), train$target)
+compute_RMSE(rep(mean_target, length(train$target)), validation$target)
 
 ################################################################################
 
@@ -346,8 +347,9 @@ forest2 <- randomForest(target ~ property_room_type + property_max_guests + prop
                           zipcode_class + dist_nearest_city_center + type_class +
                           host_location_country + host_verified_amount + years_as_host +
                           review_period + review_period_was_missing + profile_pic +
-                          exact_location + instant_bookable + superhost + identified_host,
-                        data = train_normal, ntree = 1000, mtry = 3, importance = TRUE)
+                          exact_location + instant_bookable + superhost + identified_host +
+                          property_zip_missing,
+                        data = train_normal, ntree = 3000, mtry = 3, importance = TRUE)
 
 # Put all variables used in the model in a vector
 model_variables <- c("property_room_type", "property_max_guests", "property_bathrooms", 
@@ -361,7 +363,8 @@ model_variables <- c("property_room_type", "property_max_guests", "property_bath
                      "zipcode_class", "dist_nearest_city_center", "type_class", 
                      "host_location_country", "host_verified_amount", "years_as_host", 
                      "review_period", "review_period_was_missing", "profile_pic", 
-                     "exact_location", "instant_bookable", "superhost", "identified_host")
+                     "exact_location", "instant_bookable", "superhost", "identified_host",
+                     "property_zip_missing")
 
 # RMSE on training set
 compute_RMSE_train(forest2, model_variables, pred_for_ppp = FALSE, pred_for_bc_target = FALSE)
@@ -384,7 +387,8 @@ lin_model <- lm(target ~ property_room_type + property_max_guests + property_bat
                   zipcode_class + dist_nearest_city_center + type_class +
                   host_location_country + host_verified_amount + years_as_host +
                   review_period + review_period_was_missing + profile_pic +
-                  exact_location + instant_bookable + superhost + identified_host,
+                  exact_location + instant_bookable + superhost + identified_host + 
+                  property_zip_missing,
                 data = train_normal)
 
 model_variables <- c("property_room_type", "property_max_guests", "property_bathrooms", 
@@ -398,7 +402,8 @@ model_variables <- c("property_room_type", "property_max_guests", "property_bath
                      "zipcode_class", "dist_nearest_city_center", "type_class", 
                      "host_location_country", "host_verified_amount", "years_as_host", 
                      "review_period", "review_period_was_missing", "profile_pic", 
-                     "exact_location", "instant_bookable", "superhost", "identified_host")
+                     "exact_location", "instant_bookable", "superhost", "identified_host",
+                     "property_zip_missing")
 
 compute_RMSE_train(lin_model, model_variables, pred_for_ppp = FALSE, pred_for_bc_target = FALSE)
 compute_RMSE_validation(lin_model, model_variables, pred_for_ppp = FALSE, pred_for_bc_target = FALSE)
@@ -543,33 +548,6 @@ Xval <- Xval[,-1]
 pred <- predict(lasso_reg_interactions, newx = Xval)
 compute_RMSE(pred, train$target)
 
-
-################################################################################
-
-#example variables
-lassoModel_variables <- c("superhost", "zipcode_class", "booking_price_covers")
-
-#compute rmse
-compute_RMSE_train(ridgeModel, ridgeModel_variables, pred_for_ppp = TRUE, pred_for_bc_target = FALSE)
-compute_RMSE_validation(ridgeModel, ridgeModel_variables, pred_for_ppp = TRUE, pred_for_bc_target = FALSE)
-
-
-# Perform lasso regression
-lassoModel <- glmnet(x, y, alpha = 1, lambda = 0.1)
-
-# Print the lasso coefficients
-print(coef(lassoModel))
-
-# Example variables
-lassoModel_variables <- c("superhost", "zipcode_class", "booking_price_covers")
-
-#compute rmse
-compute_RMSE_train(lassoModel, lassoModel_variables, pred_for_ppp = TRUE, pred_for_bc_target = FALSE)
-compute_RMSE_validation(lassoModel, lassoModel_variables, pred_for_ppp = TRUE, pred_for_bc_target = FALSE)
-
-
-
-
 ################################################################################
 
 # Other models?
@@ -665,43 +643,6 @@ lr_model_pca <- lm(train_numerical_normalized_with_pc$target ~ train_numerical_n
 lr_model_variables <- c("pc1", "pc2")
 compute_RMSE_train(lr_model_pca, lr_model_variables, pred_for_ppp = FALSE, pred_for_bc_target = FALSE)
 compute_RMSE_validation(lr_model2, lr_model2_variables, pred_for_ppp = FALSE, pred_for_bc_target = FALSE)
-
-# Ridge/Lasso
-#   - Which variables are selected?
-# Load the glmnet package
-library(glmnet)
-
-# Create the predictor matrix and response vector
-x <- as.matrix(train[, -1])
-y <- train$target
-
-# Perform ridge regression
-ridgeModel <- glmnet(x, y, alpha = 0, lambda = 0.1)
-
-# Print the ridge coefficients
-print(coef(ridgeModel))
-
-#example variables
-lassoModel_variables <- c("superhost", "zipcode_class", "booking_price_covers")
-
-#compute rmse
-compute_RMSE_train(ridgeModel, ridgeModel_variables, pred_for_ppp = TRUE, pred_for_bc_target = FALSE)
-compute_RMSE_validation(ridgeModel, ridgeModel_variables, pred_for_ppp = TRUE, pred_for_bc_target = FALSE)
-
-
-# Perform lasso regression
-lassoModel <- glmnet(x, y, alpha = 1, lambda = 0.1)
-
-# Print the lasso coefficients
-print(coef(lassoModel))
-
-# Example variables
-lassoModel_variables <- c("superhost", "zipcode_class", "booking_price_covers")
-
-#compute rmse
-compute_RMSE_train(lassoModel, lassoModel_variables, pred_for_ppp = TRUE, pred_for_bc_target = FALSE)
-compute_RMSE_validation(lassoModel, lassoModel_variables, pred_for_ppp = TRUE, pred_for_bc_target = FALSE)
-
 
 # (Generalized additive models)
 
