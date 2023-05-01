@@ -161,7 +161,7 @@ mp_final_par <- mp_optimal_par_set[[which.min(mp_validation_rmses)]]
 #
 
 if (!exists("opt_mb_xgb")) {
-  mp_final_par <- read.csv("mp_pars.csv")
+  mp_final_par <- read.csv("Predictions/mp_pars.csv")
 }
 
 # ... Without re-estimating the optimal number of rounds
@@ -1244,7 +1244,7 @@ mp2xgb_all <- xgb.DMatrix(data = data.matrix(mp2_df_all_combined[,-1]),
 
 if (!exists("mp2_final_par") | !exists("opt_mp2_xgb") | !exists("mp2_opt_params") |
     !exists("mp2_opt_xgbcv") | !exists("opt_mp2_xgb2")) {
-  mp2_final_par <- read.csv("mp2_pars_incl.csv")
+  mp2_final_par <- read.csv("Predictions/mp2_pars_incl.csv")
   
   
   #
@@ -1285,6 +1285,7 @@ if (!exists("mp2_final_par") | !exists("opt_mp2_xgb") | !exists("mp2_opt_params"
                           nrounds = which.min(mp2_opt_xgbcv$evaluation_log$test_rmse_mean))
 }
 
+par(mfrow = c(1, 1))
 
 # Variable importance plot (based on increase in rmse per split). Also note 
 # that we work with the model with re-optimized number of training iterations.

@@ -356,6 +356,9 @@ bedrooms_missing_idx <- which(is.na(train$property_bedrooms))
 train[bedrooms_missing_idx, "property_desc"]
 train[bedrooms_missing_idx, "property_bedrooms"] <- median_bedrooms
 
+par(mfrow = c(1, 2))
+plot(train$property_bedrooms, bc_target)
+
 #
 # property_beds
 #
@@ -370,6 +373,10 @@ length(beds_missing_idx)
 median_beds <- median(train$property_beds, na.rm = TRUE)
 train[beds_missing_idx, "property_desc"]
 train[beds_missing_idx, "property_beds"] <- median_beds
+
+plot(train$property_beds, bc_target)
+
+par(mfrow = c(1,1))
 
 #
 # property_last_updated
