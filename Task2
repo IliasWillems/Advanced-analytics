@@ -1,5 +1,5 @@
 import shutil
-
+import random
 import numpy as np
 import json
 import zipfile
@@ -126,3 +126,27 @@ print('Test accuracy:', test_acc)
 # Predict on new images
 new_images = np.array([...]) # Replace with your own new images
 predictions = model.predict(new_images)
+
+# pretrained model VGG16
+# Load without the top layer input_shape(img_width, img_height, 3) (the 3 is for the colors rbg)
+vgg_model = VGG16(weights='imagenet', include_top=False, input_shape=(224, 224, 3))
+
+# make sure we don't train these layers
+for layer in vgg_model.layers:
+    layer.trainable = False
+
+# Add a new output layer with 4 classes
+x = Flatten()(vgg_model.output)
+output_layer = Dense(4, activation='softmax')(x)
+
+#create a new model with the pre-trained layers and the new output layer and train
+model_VGG = Model(inputs=vgg_model.input, outputs=output_layer)
+
+model_VGG.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
+
+history = model.fit_generator(train_generator, steps_per_epoch=train_generator.samples//batch_size, epochs=5, validation_data=val_generator, validation_steps=val_generator.samples//batch_size)
+
+#evaluate
+test_loss, test_acc = model.evaluate_generator(test_generator, steps=test_generator.samples//batch_size)
+print('Test accuracy:', test_acc)
+
