@@ -5,14 +5,16 @@ import json
 import zipfile
 import os
 import pandas as pd
-from keras.layers import Conv2D, MaxPooling2D, Flatten, Dense
-from keras.models import Sequential
+from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense
+from tensorflow.keras.models import Sequential
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
-
+import lime
+from lime import lime_image
+from PIL import Image
 
 # paths to zip file of images and json dataset
-#zip_path = "path/to/images.zip"
-#dataset_path = "path/to/dataset.json"
+# zip_path = "path/to/images.zip"
+# dataset_path = "path/to/dataset.json"
 
 # IK HEB DIE OP EEN ANDERE PLEK STEKEN DAAROM IS HET DIT
 zip_path = r"D:\school\Advanced Analytics is a Big Data World\images.zip"
@@ -39,16 +41,15 @@ for item in data:
 # the file names of the images are just the id with .jpg
 # I want to create the training, validation and test set.
 # For this I need to make a pandas data frame with two columns, with the image file names and one with the categories
-random.shuffle(image_ids) # shuffle image id's
+random.shuffle(image_ids)  # shuffle image id's
 
 train_size = 0.7
 val_size = 0.2
 test_size = 0.1
 
-train_image_ids = image_ids[:int(len(image_ids)*train_size)]
-val_image_ids = image_ids[int(len(image_ids)*train_size):int(len(image_ids)*(train_size+val_size))]
-test_image_ids = image_ids[int(len(image_ids)*(train_size+val_size)):]
-
+train_image_ids = image_ids[:int(len(image_ids) * train_size)]
+val_image_ids = image_ids[int(len(image_ids) * train_size):int(len(image_ids) * (train_size + val_size))]
+test_image_ids = image_ids[int(len(image_ids) * (train_size + val_size)):]
 
 # Get lists of image filenames for each set
 train_filenames = [f"{image_id}.jpg" for image_id in train_image_ids]
@@ -56,9 +57,12 @@ val_filenames = [f"{image_id}.jpg" for image_id in val_image_ids]
 test_filenames = [f"{image_id}.jpg" for image_id in test_image_ids]
 
 # Create a pandas dataframe with two columns: "filename" and "price_category"
-train_df = pd.DataFrame({"filename": train_filenames, "price_category": [price_categories[image_id] for image_id in train_image_ids]})
-val_df = pd.DataFrame({"filename": val_filenames, "price_category": [price_categories[image_id] for image_id in val_image_ids]})
-test_df = pd.DataFrame({"filename": test_filenames, "price_category": [price_categories[image_id] for image_id in test_image_ids]})
+train_df = pd.DataFrame(
+    {"filename": train_filenames, "price_category": [price_categories[image_id] for image_id in train_image_ids]})
+val_df = pd.DataFrame(
+    {"filename": val_filenames, "price_category": [price_categories[image_id] for image_id in val_image_ids]})
+test_df = pd.DataFrame(
+    {"filename": test_filenames, "price_category": [price_categories[image_id] for image_id in test_image_ids]})
 
 # Set the paths for the training, validation, and test data directories
 train_data_dir = os.path.join(images_path, "train")
@@ -90,15 +94,18 @@ for filename in test_filenames:
 img_width, img_height = 224, 224
 batch_size = 32
 
-# Create an ImageDataGenerator for data preprocessing
-train_datagen = ImageDataGenerator(rescale=1./255, shear_range=0.2, zoom_range=0.2, horizontal_flip=True)
-val_datagen = ImageDataGenerator(rescale=1./255)
-test_datagen = ImageDataGenerator(rescale=1./255)
+# Create an ImageDataGenerator for data preprocessing including rotation augmentation
+train_datagen = ImageDataGenerator(rescale=1. / 255, rotation_range=20, fill_mode='nearest')
+val_datagen = ImageDataGenerator(rescale=1. / 255)
+test_datagen = ImageDataGenerator(rescale=1. / 255)
 
 # Generate the training, validation, and testing datasets
-train_generator = train_datagen.flow_from_directory(train_data_dir, target_size=(img_width, img_height), batch_size=batch_size, class_mode='categorical')
-val_generator = val_datagen.flow_from_directory(val_data_dir, target_size=(img_width, img_height), batch_size=batch_size, class_mode='categorical')
-test_generator = test_datagen.flow_from_directory(test_data_dir, target_size=(img_width, img_height), batch_size=batch_size, class_mode='categorical')
+train_generator = train_datagen.flow_from_directory(train_data_dir, target_size=(img_width, img_height),
+                                                    batch_size=batch_size, class_mode='categorical')
+val_generator = val_datagen.flow_from_directory(val_data_dir, target_size=(img_width, img_height),
+                                                batch_size=batch_size, class_mode='categorical')
+test_generator = test_datagen.flow_from_directory(test_data_dir, target_size=(img_width, img_height),
+                                                  batch_size=batch_size, class_mode='categorical')
 
 # Define the CNN architecture
 model = Sequential()
@@ -117,15 +124,35 @@ model.add(Dense(4, activation='softmax'))
 model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
 
 # Train the model
-history = model.fit_generator(train_generator, steps_per_epoch=train_generator.samples//batch_size, epochs=50, validation_data=val_generator, validation_steps=val_generator.samples//batch_size)
+history = model.fit_generator(train_generator, steps_per_epoch=train_generator.samples // batch_size, epochs=50,
+                              validation_data=val_generator, validation_steps=val_generator.samples // batch_size)
 
 # Evaluate the model on the test dataset
-test_loss, test_acc = model.evaluate_generator(test_generator, steps=test_generator.samples//batch_size)
+test_loss, test_acc = model.evaluate_generator(test_generator, steps=test_generator.samples // batch_size)
 print('Test accuracy:', test_acc)
+print('Test loss:', test_loss)
 
-# Predict on new images
-new_images = np.array([...]) # Replace with your own new images
-predictions = model.predict(new_images)
+# interpretability technique LIME to get more insights on the decisions
+explainer = lime_image.LimeImageExplainer()
+
+
+def predict_wrapper(images):
+    # This function is a wrapper around the model's prediction function
+    # It takes in a batch of images (N, 224, 224, 3) and returns the predicted probabilities (N, 5)
+    return model.predict(images)
+
+
+# Get an example image from the validation set
+example_image_path = os.path.join(val_data_dir, val_filenames[0])
+example_image = Image.open(example_image_path)
+
+# Explain the model's prediction for the example image
+explanation = explainer.explain_instance(np.array(example_image), predict_wrapper, top_labels=5)
+
+# Show the LIME visualization for the explanation
+temp, mask = explanation.get_image_and_mask(explanation.top_labels[0], positive_only=True, num_features=5, hide_rest=True)
+img_boundry = mark_boundaries(temp/2 + 0.5, mask)
+Image.fromarray((img_boundry*255).astype(np.uint8))
 
 # pretrained model VGG16
 # Load without the top layer input_shape(img_width, img_height, 3) (the 3 is for the colors rbg)
@@ -139,14 +166,17 @@ for layer in vgg_model.layers:
 x = Flatten()(vgg_model.output)
 output_layer = Dense(4, activation='softmax')(x)
 
-#create a new model with the pre-trained layers and the new output layer and train
+# create a new model with the pre-trained layers and the new output layer and train
 model_VGG = Model(inputs=vgg_model.input, outputs=output_layer)
 
 model_VGG.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
 
-history = model.fit_generator(train_generator, steps_per_epoch=train_generator.samples//batch_size, epochs=5, validation_data=val_generator, validation_steps=val_generator.samples//batch_size)
+history = model.fit_generator(train_generator, steps_per_epoch=train_generator.samples // batch_size, epochs=5,
+                              validation_data=val_generator, validation_steps=val_generator.samples // batch_size)
 
-#evaluate
-test_loss, test_acc = model.evaluate_generator(test_generator, steps=test_generator.samples//batch_size)
+# evaluate
+test_loss, test_acc = model.evaluate_generator(test_generator, steps=test_generator.samples // batch_size)
 print('Test accuracy:', test_acc)
+print('Test loss:', test_loss)
+
 
