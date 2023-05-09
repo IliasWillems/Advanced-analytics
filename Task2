@@ -27,7 +27,10 @@ dataset_path = r"D:/school/Advanced Analytics is a Big Data World/dataset.json"
 
 # extract images from zip file
 with zipfile.ZipFile(zip_path, "r") as zip_ref:
-    zip_ref.extractall("path/to/extracted_images")
+    all_filenames = zip_ref.namelist()
+    random.shuffle(all_filenames)
+    selected_filenames = all_filenames[:1000]
+    zip_ref.extractall("path/to/extracted_images", members=selected_filenames)
 images_path = "path/to/extracted_images"
 # load the JSON file and extract the price_category for each image
 with open(dataset_path, "r") as f:
@@ -40,8 +43,8 @@ for item in data:
     # Extract the image IDs from the "full_images" list and map them to their price category
     for img in item["more_details"]["full_images"]:
         image_id = img["image_id"]
-        image_ids.append(image_id)
-        price_categories[image_id] = price_category
+        if f"{image_id}.jpg" in selected_filenames:
+            price_categories[image_id] = price_category
 
 # now I have a list of image id's and a library of price categories
 # the file names of the images are just the id with .jpg
