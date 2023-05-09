@@ -29,6 +29,7 @@ dataset_path = r"D:/school/Advanced Analytics is a Big Data World/dataset.json"
 with zipfile.ZipFile(zip_path, "r") as zip_ref:
     all_filenames = zip_ref.namelist()
     random.shuffle(all_filenames)
+    # number of images used can be changed here
     selected_filenames = all_filenames[:1000]
     zip_ref.extractall("path/to/extracted_images", members=selected_filenames)
 images_path = "path/to/extracted_images"
@@ -38,13 +39,15 @@ with open(dataset_path, "r") as f:
 price_categories = {}
 image_ids = []
 for item in data:
-    # Extract the price category
-    price_category = item['price_category']['label']
-    # Extract the image IDs from the "full_images" list and map them to their price category
-    for img in item["more_details"]["full_images"]:
-        image_id = img["image_id"]
-        if f"{image_id}.jpg" in selected_filenames:
-            price_categories[image_id] = price_category
+    # Check if 'price_category' key is present in the 'item' dictionary
+    if 'price_category' in item and item['price_category'] is not None:
+        # Extract the price category
+        price_category = item['price_category']['label']
+        # Extract the image IDs from the "full_images" list and map them to their price category
+        for img in item["more_details"]["full_images"]:
+            image_id = img["image_id"]
+            if f"{image_id}.jpg" in selected_filenames:
+                price_categories[image_id] = price_category
 
 # now I have a list of image id's and a library of price categories
 # the file names of the images are just the id with .jpg
@@ -133,7 +136,7 @@ model.add(Dense(4, activation='softmax'))
 model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
 
 # Train the model
-history = model.fit_generator(train_generator, steps_per_epoch=train_generator.samples // batch_size, epochs=50,
+history = model.fit(train_generator, steps_per_epoch=train_generator.samples // batch_size, epochs=50,
                               validation_data=val_generator, validation_steps=val_generator.samples // batch_size)
 
 # Evaluate the model on the test dataset
@@ -180,7 +183,7 @@ model_VGG = Model(inputs=vgg_model.input, outputs=output_layer)
 
 model_VGG.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
 
-history = model.fit_generator(train_generator, steps_per_epoch=train_generator.samples // batch_size, epochs=5,
+history = model.fit(train_generator, steps_per_epoch=train_generator.samples // batch_size, epochs=5,
                               validation_data=val_generator, validation_steps=val_generator.samples // batch_size)
 
 # evaluate
