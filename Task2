@@ -46,8 +46,8 @@ for item in data:
         # Extract the image IDs from the "full_images" list and map them to their price category
         for img in item["more_details"]["full_images"]:
             image_id = img["image_id"]
-            image_ids.append(image_id)
             if f"{image_id}.jpg" in selected_filenames:
+                image_ids.append(image_id)
                 price_categories[image_id] = price_category
 
 # now I have a list of image id's and a library of price categories
