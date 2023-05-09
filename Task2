@@ -12,13 +12,19 @@ import lime
 from lime import lime_image
 from PIL import Image
 
+
 # paths to zip file of images and json dataset
 # zip_path = "path/to/images.zip"
 # dataset_path = "path/to/dataset.json"
 
 # IK HEB DIE OP EEN ANDERE PLEK STEKEN DAAROM IS HET DIT
-zip_path = r"D:\school\Advanced Analytics is a Big Data World\images.zip"
-dataset_path = r"D:\school\Advanced Analytics is a Big Data World\dataset.json"
+zip_path = r"D:/school/Advanced Analytics is a Big Data World/images.zip"
+dataset_path = r"D:/school/Advanced Analytics is a Big Data World/dataset.json"
+
+# From google drive
+#zip_path = '/content/drive/MyDrive/path/to/images.zip'
+#dataset_path = '/content/drive/MyDrive/path/to/dataset.json'
+
 # extract images from zip file
 with zipfile.ZipFile(zip_path, "r") as zip_ref:
     zip_ref.extractall("path/to/extracted_images")
@@ -178,5 +184,3 @@ history = model.fit_generator(train_generator, steps_per_epoch=train_generator.s
 test_loss, test_acc = model.evaluate_generator(test_generator, steps=test_generator.samples // batch_size)
 print('Test accuracy:', test_acc)
 print('Test loss:', test_loss)
-
-
