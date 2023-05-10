@@ -7,7 +7,11 @@ import os
 import pandas as pd
 from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense
 from tensorflow.keras.models import Sequential
+import os
 from keras.models import Model
+from keras.applications.vgg16 import VGG16, preprocess_input
+from keras.layers import Dense, Flatten
+import numpy as np
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 import lime
 from lime import lime_image
@@ -169,6 +173,34 @@ img_boundry = mark_boundaries(temp/2 + 0.5, mask)
 Image.fromarray((img_boundry*255).astype(np.uint8))
 
 # pretrained model VGG16
+
+# preprocessing according to VGG16
+batch_size = 64
+train_datagen = ImageDataGenerator(rescale=1. / 255, rotation_range=90,
+                                     brightness_range=[0.1, 0.7],
+                                     width_shift_range=0.5,
+                                     height_shift_range=0.5,
+                                     horizontal_flip=True,
+                                     vertical_flip=True,
+                                     validation_split=0.15,
+                                     preprocessing_function=preprocess_input)
+val_datagen = ImageDataGenerator(rescale=1. / 255,preprocessing_function=preprocess_input)
+test_datagen = ImageDataGenerator(rescale=1. / 255,preprocessing_function=preprocess_input)
+
+# Generate the training, validation, and testing datasets (I followed the instructions on https://www.learndatasci.com/tutorials/hands-on-transfer-learning-keras/)
+train_generator = train_datagen.flow_from_directory(train_data_dir, target_size=(img_width, img_height),
+                                                    batch_size=batch_size, class_mode='categorical', shuffle=True,
+                                               seed=42)
+val_generator = val_datagen.flow_from_directory(val_data_dir, target_size=(img_width, img_height),
+                                                batch_size=batch_size, class_mode='categorical', shuffle=True,
+                                               seed=42)
+test_generator = test_datagen.flow_from_directory(test_data_dir,
+                                             target_size=(img_width, img_height),
+                                             class_mode='categorical',
+                                             batch_size=1,
+                                             shuffle=False,
+                                             seed=42)
+
 # Load without the top layer input_shape(img_width, img_height, 3) (the 3 is for the colors rbg)
 vgg_model = VGG16(weights='imagenet', include_top=False, input_shape=(224, 224, 3))
 
