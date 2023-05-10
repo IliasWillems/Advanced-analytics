@@ -185,10 +185,32 @@ model_VGG = Model(inputs=vgg_model.input, outputs=output_layer)
 
 model_VGG.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
 
-history = model.fit_generator(train_generator, steps_per_epoch=train_generator.samples // batch_size, epochs=5,
+history = model_VGG.fit_generator(train_generator, steps_per_epoch=train_generator.samples // batch_size, epochs=5,
                               validation_data=val_generator, validation_steps=val_generator.samples // batch_size)
 
 # evaluate
-test_loss, test_acc = model.evaluate_generator(test_generator, steps=test_generator.samples // batch_size)
+test_loss, test_acc = model_VGG.evaluate_generator(test_generator, steps=test_generator.samples // batch_size)
 print('Test accuracy:', test_acc)
 print('Test loss:', test_loss)
+
+#LIME
+explainer = lime_image.LimeImageExplainer()
+
+
+def predict_wrapper_VGG(images):
+    # This function is a wrapper around the model's prediction function
+    # It takes in a batch of images (N, 224, 224, 3) and returns the predicted probabilities (N, 5)
+    return model_VGG.predict(images)
+
+
+# Get an example image from the validation set
+example_image_path = os.path.join(val_data_dir, val_filenames[0])
+example_image = Image.open(example_image_path)
+
+# Explain the model's prediction for the example image
+explanation = explainer.explain_instance(np.array(example_image), predict_wrapper_VGG, top_labels=5)
+
+# Show the LIME visualization for the explanation
+temp, mask = explanation.get_image_and_mask(explanation.top_labels[0], positive_only=True, num_features=5, hide_rest=True)
+img_boundry = mark_boundaries(temp/2 + 0.5, mask)
+Image.fromarray((img_boundry*255).astype(np.uint8))
